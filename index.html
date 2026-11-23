@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Lối Khám – nguyên mẫu chỉ đường và báo bước tiếp theo trong hành trình khám bệnh (dữ liệu giả lập)">
+<meta name="description" content="Lối Khám – nguyên mẫu chỉ đường và báo bước tiếp theo trong hành trình khám bệnh: chọn chỉ định sau khám, phiếu hành trình in giấy, bản đồ điểm lạc đường (dữ liệu giả lập)">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Lối Khám</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -178,7 +178,59 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
 .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite; }
 @keyframes pulse { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+/* ---------- Bản phát triển (v2) ---------- */
+.v2note { padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); border: 1px solid var(--brand); font-size: 13.5px; }
+.v2note a { color: var(--brand); font-weight: 700; }
+.bh-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chip[aria-pressed="true"] { background: var(--warn); color: var(--surface); border-color: var(--warn); }
+.log li.order .m { color: var(--zone-c); font-weight: 600; }
+.steps li.todo { border: 2px dashed var(--line); }
+.steps li.todo .dot { border-style: dashed; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; border: 2px solid var(--line); border-radius: 14px; padding: 8px 10px; background: var(--surface); text-align: left; }
+.opt svg { width: 48px; height: 48px; }
+.opt b { display: block; font-size: 1.02em; }
+.opt .where { color: var(--muted); font-size: .86em; }
+.opt[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.opt[aria-pressed="true"] b::after { content: " ✓"; color: var(--brand); }
+.btn:disabled { opacity: .45; cursor: default; }
+.heat-list { display: grid; gap: 8px; }
+.heat-item { border-left: 4px solid var(--warn); padding: 4px 0 4px 10px; font-size: 13px; }
+.heat-item b { display: block; font-size: 13.5px; }
+.overlay { position: fixed; inset: 0; background: rgba(10, 20, 30, .55); display: grid; place-items: start center; overflow-y: auto; padding: 24px 12px; z-index: 50; }
+.overlay-box { background: var(--surface); border-radius: 16px; padding: 14px; width: min(760px, 100%); display: grid; gap: 10px; }
+.overlay-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pcard { --surface: #ffffff; --surface-2: #e9eef2; --fg: #13212c; --muted: #4a5a67; --line: #c9d3db; --brand: #1c4f7a; --brand-soft: #dde9f3;
+  --sign: #f2b632; --sign-ink: #2b2100; --warn: #b5470f; --floor: #f7f9fb; --zone-a: #2f6fb0; --zone-b: #2e8b57; --zone-c: #7a4fb0; --zone-d: #c46a12;
+  background: #fff; color: #111; border: 1px solid #ccc; border-radius: 8px; padding: 20px 22px; font-size: 15px; line-height: 1.45; display: grid; gap: 12px; }
+.pcard .ph { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; border-bottom: 3px solid #13212c; padding-bottom: 6px; }
+.pcard h2 { margin: 0; font-size: 21px; font-weight: 800; }
+.pcard .meta { font-size: 14px; }
+.pcard .meta b { font-family: var(--mono); }
+.pcard svg { width: 100%; height: auto; border: 1px solid #d5dee5; border-radius: 6px; }
+.pcard table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.pcard th, .pcard td { border: 1px solid #9aa7b1; padding: 6px 7px; text-align: left; vertical-align: top; }
+.pcard th { background: #eef2f5; font-size: 13px; }
+.pcard .box { width: 18px; height: 18px; border: 2px solid #222; border-radius: 3px; display: inline-grid; place-items: center; font-weight: 800; font-size: 13px; }
+.pcard .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.pcard .sw, .pcard th, .pcard svg * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pcard .alert { border: 2px solid #b5470f; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.pcard .foot { font-size: 12px; color: #4a5a67; }
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body.print-card > .wrap { display: none !important; }
+  body.print-card { background: #fff; }
+  body.print-card .overlay { position: static; background: none; padding: 0; display: block; overflow: visible; }
+  body.print-card .overlay-box { padding: 0; width: auto; border-radius: 0; }
+  body.print-card .overlay-bar { display: none; }
+  body.print-card .pcard { border: 0; padding: 0; gap: 8px; font-size: 13.5px; }
+  body.print-card .pcard svg { max-height: 74mm; }
+  body.print-card .pcard table { font-size: 13px; }
+  body.print-card .pcard th, body.print-card .pcard td { padding: 4px 6px; }
+  body.print-card .pcard .alert { font-size: 13px; padding: 6px 9px; }
+}
 </style>
+
 
 </head>
 <body>
@@ -201,6 +253,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       <button class="chip" id="btn-reset" type="button">Làm lại</button>
     </div>
   </header>
+  <div class="v2note" role="note"><b>Cập nhật sau vòng sơ khảo</b> (từ 22/11/2026): thêm bước chọn chỉ định sau khám, phiếu hành trình in giấy cho người không dùng điện thoại, và bản đồ điểm lạc đường cho bệnh viện. Bản nộp kèm hồ sơ được lưu trong <a href="https://github.com/btphuong3011/loi-kham/tree/ban-nop-ho-so" target="_blank" rel="noopener noreferrer">lịch sử mã nguồn</a>.</div>
 
   <main class="layout">
     <section class="phone-col" aria-label="Ứng dụng của người bệnh">
@@ -224,11 +277,11 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     <section class="board" aria-label="Bảng mô phỏng tại bệnh viện">
       <div class="bhead">
         <h2>Bản đồ minh họa · bệnh viện mẫu (2 tầng)</h2>
-        <span class="clock" id="clock" title="Giờ mô phỏng">07:30</span>
+        <span class="bh-tools"><button class="chip" id="btn-heat" type="button" aria-pressed="false">Xem điểm lạc đường</button><span class="clock" id="clock" title="Giờ mô phỏng">07:30</span></span>
       </div>
       <div class="mapbox">
         <svg id="map" viewBox="0 0 1000 520" role="img" aria-label="Sơ đồ bệnh viện với các mã QR Bạn đang ở đây, các khu khám và vị trí người bệnh">
-          <g id="m-base"></g><g id="m-route"></g><g id="m-dyn"></g>
+          <g id="m-base"></g><g id="m-heat"></g><g id="m-route"></g><g id="m-dyn"></g>
         </svg>
         <div class="legend">
           <span><i style="background:var(--sign)"></i>Mã QR “Bạn đang ở đây” (bấm để quét thử)</span>
@@ -237,6 +290,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
           <span><i style="background:var(--zone-b)"></i>Khu B</span>
           <span><i style="background:var(--zone-c)"></i>Khu C</span>
           <span><i style="background:var(--zone-d)"></i>Khu D</span>
+          <span id="heat-legend" hidden><i style="background:var(--warn);border-radius:50%"></i>Điểm lạc đường: số lượt quét lặp, đi lệch đường hoặc nhờ hỗ trợ tại mã đó hôm nay (dữ liệu mẫu cộng lượt thử của bạn)</span>
         </div>
       </div>
       <div class="tabs" role="tablist" aria-label="Bảng điều khiển">
@@ -273,6 +327,13 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   </main>
 </div>
 
+<div class="overlay" id="card-overlay" hidden>
+  <div class="overlay-box" role="dialog" aria-modal="true" aria-labelledby="card-title">
+    <div class="overlay-bar"><b id="card-title">Phiếu hành trình in giấy · cho người không dùng điện thoại</b><span class="controls"><button class="chip primary" id="btn-print" type="button">In phiếu</button><button class="chip" id="btn-close-card" type="button">Đóng</button></span></div>
+    <div id="print-card" class="pcard"></div>
+  </div>
+</div>
+
 <script>
 (() => {
   'use strict';
@@ -295,7 +356,9 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     pharmacy: { name: 'Nhà thuốc BHYT (khu D)', floor: 1, x: 575, y: 345, zone: 'D' },
     liftB2:   { name: 'Thang máy khu B, tầng 2', floor: 2, x: 725, y: 215, qr: true, zone: 'B' },
     hallB2:   { name: 'Hành lang B2', floor: 2, x: 835, y: 215, qr: true, zone: 'B' },
-    room205:  { name: 'Phòng khám 205 – Nội tim mạch', floor: 2, x: 882, y: 140, zone: 'B' }
+    room205:  { name: 'Phòng khám 205 – Nội tim mạch', floor: 2, x: 882, y: 140, zone: 'B' },
+    imaging:  { name: 'Phòng siêu âm – X-quang (khu C)', floor: 1, x: 440, y: 140, zone: 'C' },
+    room207:  { name: 'Phòng 207 – Đo điện tim (khu B)', floor: 2, x: 942, y: 140, zone: 'B' }
   };
   // [a, b, mét, chỉ dẫn a→b, chỉ dẫn b→a, giây cố định]
   const EDGES = [
@@ -311,16 +374,38 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     ['pharmD', 'pharmacy', 15, 'Nhà thuốc BHYT ở bên trái; xếp hàng theo số trên đơn thuốc.', 'Từ nhà thuốc, quay ra lối vào khu D.'],
     ['liftB1', 'liftB2', 0, 'Đi thang máy khu B lên tầng 2.', 'Đi thang máy khu B xuống tầng trệt.', LIFT_S],
     ['liftB2', 'hallB2', 20, 'Ra khỏi thang máy, rẽ phải vào hành lang B2.', 'Đi thẳng về thang máy khu B.'],
-    ['hallB2', 'room205', 12, 'Phòng 205 ở bên trái; ngồi chờ và theo dõi số trên bảng điện tử.', 'Từ phòng 205, rẽ phải ra hành lang B2.']
+    ['hallB2', 'room205', 12, 'Phòng 205 ở bên trái; ngồi chờ và theo dõi số trên bảng điện tử.', 'Từ phòng 205, rẽ phải ra hành lang B2.'],
+    ['labC', 'imaging', 20, 'Vào khu C, phòng siêu âm – X-quang ở bên trái; lấy số tại máy trước cửa.', 'Từ phòng siêu âm – X-quang, đi ra lối vào khu C.'],
+    ['hallB2', 'room207', 24, 'Đi tiếp hành lang B2; phòng 207 ở cuối, bên trái.', 'Từ phòng 207, đi về hành lang B2.']
   ];
-  const JOURNEY = [
-    { title: 'Tiếp nhận và lấy số', dest: 'intake', icon: 'ticket', bring: 'Thẻ BHYT hoặc CCCD gắn chip', tip: 'Đã hoàn thành tại ki-ốt lúc 07:25.', service: 0 },
-    { title: 'Xác nhận BHYT, đóng tạm ứng', dest: 'cashier', icon: 'cash', bring: 'Phiếu số thứ tự, thẻ BHYT', tip: 'Chỉ đóng tiền tại quầy thu ngân và nhận biên lai.', service: 240 },
-    { title: 'Khám Nội tim mạch', dest: 'room205', icon: 'doctor', bring: 'Phiếu khám, kết quả cũ (nếu có)', tip: 'Ngồi chờ trước phòng, theo dõi số 1047 trên bảng điện tử.', service: 900 },
-    { title: 'Lấy máu xét nghiệm', dest: 'lab', icon: 'blood', bring: 'Phiếu chỉ định xét nghiệm', tip: 'Nếu được dặn nhịn ăn mà bạn đã ăn, hãy báo nhân viên trước khi lấy máu.', service: 600 },
-    { title: 'Quay lại phòng 205 nghe kết quả', dest: 'room205', icon: 'result', bring: 'Phiếu hẹn trả kết quả', tip: 'Thời gian chờ kết quả trong nguyên mẫu chỉ là minh họa.', service: 600 },
-    { title: 'Nhận thuốc BHYT', dest: 'pharmacy', icon: 'pill', bring: 'Đơn thuốc, thẻ BHYT', tip: 'Kiểm tra tên thuốc và số lượng trước khi rời quầy.', service: 300 }
+  // Giai đoạn 1 chưa kết nối hệ thống bệnh viện: hành trình chỉ biết trước các bước tới phòng khám.
+  // Các bước sau khám được thêm khi người bệnh (hoặc nhân viên) chọn đúng mục trên phiếu chỉ định giấy.
+  const BASE = [
+    { title: 'Tiếp nhận và lấy số', dest: 'intake', icon: 'ticket', kind: 'intake', bring: 'Thẻ BHYT hoặc CCCD gắn chip', tip: 'Đã hoàn thành tại ki-ốt lúc 07:25.', service: 0 },
+    { title: 'Xác nhận BHYT, đóng tạm ứng', dest: 'cashier', icon: 'cash', kind: 'cash', bring: 'Phiếu số thứ tự, thẻ BHYT', tip: 'Chỉ đóng tiền tại quầy thu ngân và nhận biên lai.', service: 240 },
+    { title: 'Khám Nội tim mạch', dest: 'room205', icon: 'doctor', kind: 'exam', bring: 'Phiếu khám, kết quả cũ (nếu có)', tip: 'Ngồi chờ trước phòng, theo dõi số 1047 trên bảng điện tử.', service: 900 }
   ];
+  const ORDERS = {
+    ecg:      { label: 'Đo điện tim', icon: 'ecg', test: true, step: { title: 'Đo điện tim', dest: 'room207', icon: 'ecg', kind: 'test', bring: 'Phiếu chỉ định', tip: 'Lấy số trước phòng 207; nằm nghỉ vài phút trước khi đo.', service: 420 } },
+    blood:    { label: 'Lấy máu xét nghiệm', icon: 'blood', test: true, step: { title: 'Lấy máu xét nghiệm', dest: 'lab', icon: 'blood', kind: 'test', bring: 'Phiếu chỉ định xét nghiệm', tip: 'Nếu được dặn nhịn ăn mà bạn đã ăn, hãy báo nhân viên trước khi lấy máu.', service: 600 } },
+    imaging:  { label: 'Siêu âm, chụp X-quang', icon: 'scan', test: true, step: { title: 'Siêu âm hoặc chụp X-quang', dest: 'imaging', icon: 'scan', kind: 'test', bring: 'Phiếu chỉ định, thẻ BHYT', tip: 'Lấy số tại máy trước cửa phòng; làm theo dặn dò ghi trên phiếu chỉ định.', service: 600 } },
+    pharmacy: { label: 'Nhận thuốc BHYT', icon: 'pill', step: { title: 'Nhận thuốc BHYT', dest: 'pharmacy', icon: 'pill', kind: 'pharmacy', bring: 'Đơn thuốc, thẻ BHYT', tip: 'Kiểm tra tên thuốc và số lượng trước khi rời quầy.', service: 300 } }
+  };
+  const RESULT_STEP = { title: 'Quay lại phòng 205 nghe kết quả', dest: 'room205', icon: 'result', kind: 'result', bring: 'Phiếu khám, phiếu hẹn trả kết quả', tip: 'Thời gian chờ kết quả trong nguyên mẫu chỉ là minh họa.', service: 600 };
+  const ZONE_HEX = { A: ['#2f6fb0', 'xanh dương'], B: ['#2e8b57', 'xanh lá'], C: ['#7a4fb0', 'tím'], D: ['#c46a12', 'cam'] };
+  // Tín hiệu lạc đường mẫu trong ngày tại từng mã QR: [quét lặp, đi lệch đường, nhờ hỗ trợ]
+  const HEAT_BASE = { hallB2: [8, 3, 1], junction: [4, 2, 1], liftB1: [3, 1, 1], labC: [2, 1, 1], lobby: [1, 1, 1], cashier: [1, 0, 1], pharmD: [1, 1, 0], liftB2: [1, 0, 0], gate: [0, 0, 1] };
+  const FIX = {
+    hallB2: 'thêm biển “Phòng 201–207 →” ngay cửa thang máy tầng 2.',
+    junction: 'sơn lại vạch màu ở ngã ba, thêm mũi tên tới khu B (xanh lá) và khu C (tím).',
+    liftB1: 'ghi rõ “Khu B · Phòng khám tầng 2” trên cửa thang máy.',
+    labC: 'thêm biển “Lấy máu · Siêu âm – X-quang” tại lối vào khu C.',
+    lobby: 'đặt sơ đồ có mã QR ngay giữa sảnh, hướng ra cổng.',
+    cashier: 'đánh số quầy thu ngân to hơn, nhìn được từ giữa sảnh.',
+    pharmD: 'thêm biển “Nhà thuốc BHYT” ở cửa hông Sảnh A.',
+    liftB2: 'ghi số phòng hai phía hành lang khi ra khỏi thang máy.',
+    gate: 'đặt biển “Lấy số khám bệnh” ngay sau cổng.'
+  };
   const CODE = 'LK-1047';
 
   // ---------- Đồ thị & tìm đường ----------
@@ -358,7 +443,8 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     return { t: 0, ticket: false, step: 1, loc: null, view: 'home', large: false, speak: false, banner: null,
       scans: [], log: [], legs: [], legStart: { t: 0, from: 'gate' }, auto: false, walk: null, waitUntil: null,
       stats: { asks: 46, top: [['Phòng khám 205', 14], ['Nhà thuốc BHYT', 11], ['Phòng lấy máu khu C', 9], ['Quầy thu ngân 5–8', 7]], rescan: [['Hành lang B2', 12], ['Ngã ba hành lang', 7]] },
-      staffTab: 'staff', looked: true };
+      staffTab: 'staff', looked: true,
+      journey: BASE.map(st => ({ ...st })), decisions: 0, closed: false, pick: [], heat: {}, heatOn: false, orderWait: 0 };
   }
   S = fresh();
 
@@ -366,18 +452,28 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const hhmm = t => { const v = START + Math.round(t); const h = Math.floor(v / 3600) % 24, m = Math.floor(v / 60) % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
   const dur = s => { const v = Math.max(0, Math.round(s)); const m = Math.floor(v / 60), r = v % 60; return m ? `${m} phút ${String(r).padStart(2, '0')} giây` : `${r} giây`; };
-  const cur = () => JOURNEY[S.step];
+  const cur = () => S.journey[S.step];
+  // vừa khám xong (hoặc vừa nghe kết quả) mà chưa biết bác sĩ cho làm gì tiếp
+  const pending = () => !S.closed && ['exam', 'result'].includes(S.journey[S.journey.length - 1].kind);
+  const total = () => `${S.journey.length}${pending() ? '+' : ''}`;
+  function bump(id, k) { if (!id || !NODES[id].qr) return; const h = S.heat[id] || (S.heat[id] = [0, 0, 0]); h[k]++; }
+  const heatOf = id => { const b = HEAT_BASE[id] || [0, 0, 0], l = S.heat[id] || [0, 0, 0]; return [b[0] + l[0], b[1] + l[1], b[2] + l[2]]; };
   function addLog(kind, text) { S.log.unshift({ t: S.t, kind, text }); }
 
   // ---------- Hành động ----------
   function scanTicket() {
     S.ticket = true; S.view = 'journey';
-    addLog('scan', 'Quét mã trên phiếu số 1047: tải hành trình khám (6 bước)');
+    addLog('scan', 'Quét mã trên phiếu số 1047: tải các bước tới phòng khám; các bước sau khám thêm theo phiếu chỉ định');
     render();
   }
   function scanAt(id) {
     if (!S.ticket) scanTicket();
     const n = NODES[id];
+    // tín hiệu lạc đường: quét lại cùng mã trong 10 phút, hoặc quét mã không nằm trên lộ trình tới bước hiện tại
+    const prev = S.scans[S.scans.length - 1];
+    const stNow = cur();
+    if (prev && prev.id === id && S.t - prev.t < 600) bump(id, 0);
+    else if (stNow && prev && !route(prev.id, stNow.dest).nodes.includes(id)) bump(id, 1);
     S.loc = id; S.scans.push({ t: S.t, id });
     addLog('scan', `Quét mã “Bạn đang ở đây” tại ${n.name}`);
     const step = cur();
@@ -401,7 +497,24 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     S.step++;
     S.legStart = { t: S.t, from: S.loc || 'gate' };
     S.banner = null;
-    S.view = S.step < JOURNEY.length ? 'journey' : 'done';
+    S.view = S.step < S.journey.length ? 'journey' : pending() ? 'orders' : 'done';
+    S.pick = []; S.orderWait = 0;
+    render();
+  }
+  function chooseOrders(picks) {
+    const tests = ['ecg', 'blood', 'imaging'].filter(k => picks.includes(k));
+    const added = [];
+    if (tests.length) { for (const k of tests) added.push({ ...ORDERS[k].step }); added.push({ ...RESULT_STEP }); }
+    else if (picks.includes('pharmacy')) added.push({ ...ORDERS.pharmacy.step });
+    else S.closed = true;
+    S.journey.push(...added);
+    S.decisions++;
+    addLog('order', added.length
+      ? `Chọn theo phiếu: ${picks.filter(k => ORDERS[k]).map(k => ORDERS[k].label).join(', ')} → thêm ${added.length} bước`
+      : 'Bác sĩ không chỉ định thêm; kết thúc hành trình');
+    S.pick = [];
+    S.view = cur() ? 'journey' : 'done';
+    say(currentSpeech());
     render();
   }
   function staffSend() {
@@ -441,7 +554,10 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       doctor: `<circle cx="32" cy="23" r="7" ${st} style="fill:var(--surface);stroke:${c}"></circle><path d="M19 48c1-9 6-13 13-13s12 4 13 13" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M27 37v5a4 4 0 0 0 8 0v-5" ${st} style="fill:none;stroke:${s}"></path>`,
       blood: `<path d="M32 14c7 10 11 16 11 22a11 11 0 0 1-22 0c0-6 4-12 11-22z" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M27 37a5 5 0 0 0 5 5" ${st} style="fill:none;stroke:${s}"></path>`,
       result: `<rect x="19" y="14" width="26" height="36" rx="3" ${st} style="fill:var(--surface);stroke:${c}"></rect><path d="M24 24h16M24 31h16M24 38h9" ${st} style="stroke:${c}"></path><path d="M36 42l3 3 6-7" ${st} style="fill:none;stroke:${s}"></path>`,
-      pill: `<rect x="16" y="26" width="32" height="13" rx="6.5" ${st} transform="rotate(-30 32 32)" style="fill:var(--surface);stroke:${c}"></rect><path d="M32 22l0 20" ${st} transform="rotate(-30 32 32)" style="stroke:${s}"></path>`
+      pill: `<rect x="16" y="26" width="32" height="13" rx="6.5" ${st} transform="rotate(-30 32 32)" style="fill:var(--surface);stroke:${c}"></rect><path d="M32 22l0 20" ${st} transform="rotate(-30 32 32)" style="stroke:${s}"></path>`,
+      ecg: `<rect x="14" y="18" width="36" height="28" rx="4" ${st} style="fill:var(--surface);stroke:${c}"></rect><path d="M18 33h7l3-7 5 13 3-6h10" ${st} style="fill:none;stroke:${s}"></path>`,
+      scan: `<rect x="16" y="16" width="32" height="32" rx="5" ${st} style="fill:var(--surface);stroke:${c}"></rect><circle cx="32" cy="32" r="8" ${st} style="fill:none;stroke:${s}"></circle><path d="M32 20v4M32 40v4M20 32h4M40 32h4" ${st} style="stroke:${c}"></path>`,
+      home: `<path d="M17 31l15-13 15 13v15H17z" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M28 46v-9h8v9" ${st} style="fill:none;stroke:${s}"></path>`
     };
     return wrap(P[kind] || '');
   }
@@ -462,10 +578,12 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       <div class="note info">Cấp cứu: đến thẳng Khoa Cấp cứu hoặc báo ngay nhân viên gần nhất. Ứng dụng không dùng cho cấp cứu.</div>`;
   }
   function stepList() {
-    return `<ol class="steps">${JOURNEY.map((st, i) => {
+    const rows = S.journey.map((st, i) => {
       const cls = i < S.step ? 'done' : i === S.step ? 'cur' : '';
       return `<li class="${cls}"><span class="dot">${i < S.step ? '✓' : i + 1}</span><span>${esc(st.title)}<br><span class="where">${esc(NODES[st.dest].name)}</span></span><span class="where">${i < S.step ? 'Xong' : i === S.step ? 'Hiện tại' : ''}</span></li>`;
-    }).join('')}</ol>`;
+    });
+    if (pending()) rows.push(`<li class="todo"><span class="dot">?</span><span>${S.decisions ? 'Sau khi nghe kết quả' : 'Các bước sau khám'}<br><span class="where">Thêm theo phiếu chỉ định hoặc đơn thuốc bác sĩ đưa</span></span><span class="where"></span></li>`);
+    return `<ol class="steps">${rows.join('')}</ol>`;
   }
   function locChip() {
     return S.loc ? `<span class="locchip">● Bạn đang ở: ${esc(NODES[S.loc].name)}</span>` : `<span class="locchip none">Chưa quét mã vị trí</span>`;
@@ -474,7 +592,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     const st = cur();
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <p class="eyebrow">Phiếu 1047 · Bước ${S.step + 1}/${JOURNEY.length}</p>${locChip()}
+        <p class="eyebrow">Phiếu 1047 · Bước ${S.step + 1}/${total()}</p>${locChip()}
       </div>
       ${S.banner ? `<div class="banner">${esc(S.banner)}</div>` : ''}
       <div class="card current">
@@ -488,10 +606,10 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   }
   function viewRoute() {
     const st = cur();
-    if (!st) return viewDone();
+    if (!st) return pending() ? viewOrders() : viewDone();
     const head = `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <p class="eyebrow">Bước ${S.step + 1}/${JOURNEY.length} · Chỉ đường</p>${locChip()}
+        <p class="eyebrow">Bước ${S.step + 1}/${total()} · Chỉ đường</p>${locChip()}
       </div>
       ${S.banner ? `<div class="banner">${esc(S.banner)}</div>` : ''}
       <h2 class="big-title">Đến: ${esc(NODES[st.dest].name)}</h2>
@@ -529,6 +647,23 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       <div class="note info">Nếu cần tái khám, mang theo phiếu hẹn và thẻ BHYT. Ra về: đi theo vạch sơn xanh dương tới cổng chính.</div>
       <button class="btn ghost" type="button" data-act="reset">Làm lại</button>`;
   }
+  function viewOrders() {
+    const opt = (k, pressed) => { const o = ORDERS[k], d = NODES[o.step.dest];
+      return `<button class="opt" type="button" data-pick="${k}" aria-pressed="${pressed}">${icon(o.icon)}<span><b>${esc(o.label)}</b><span class="where">${esc(d.name)} · Khu ${d.zone}, ${d.floor === 1 ? 'tầng trệt' : 'tầng ' + d.floor}</span></span></button>`; };
+    const first = S.decisions === 0;
+    return `
+      <p class="eyebrow">Phiếu 1047 · ${first ? 'Vừa khám xong' : 'Đã nghe kết quả'}</p>
+      <h2 class="big-title">Bác sĩ cho làm gì tiếp?</h2>
+      <p class="hint">Chọn đúng mục ghi trên ${first ? 'phiếu chỉ định' : 'đơn thuốc'} bác sĩ đưa. Ứng dụng chỉ cần biết đến phòng nào, không cần biết bệnh gì.</p>
+      ${first ? `
+        <p class="eyebrow">Có thể chọn nhiều mục</p>
+        <div class="opts">${['ecg', 'blood', 'imaging'].map(k => opt(k, S.pick.includes(k))).join('')}</div>
+        <button class="btn primary" type="button" data-act="orders-ok" ${S.pick.length ? '' : 'disabled'}>Thêm vào hành trình</button>
+        <div class="row2"><button class="btn ghost" type="button" data-act="order-pharmacy">Chỉ có đơn thuốc</button><button class="btn ghost" type="button" data-act="order-home">Không làm thêm</button></div>` : `
+        <div class="opts">${opt('pharmacy', false).replace('data-pick="pharmacy"', 'data-act="order-pharmacy"').replace(' aria-pressed="false"', '')}
+        <button class="opt" type="button" data-act="order-home">${icon('home')}<span><b>Không có đơn thuốc, ra về</b><span class="where">Mang theo phiếu hẹn tái khám nếu có</span></span></button></div>`}
+      <div class="note info">Chưa chắc phiếu ghi gì? Bấm <b>Nhờ hỗ trợ</b> hoặc đưa phiếu cho bảo vệ, quầy hỗ trợ ở Sảnh A.</div>`;
+  }
   function viewHelp() {
     return `
       <p class="eyebrow">Nhờ người hỗ trợ</p>
@@ -543,7 +678,8 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   function renderPhone() {
     const scr = $('scr');
     const v = !S.ticket && S.view !== 'help' ? 'home' : S.view;
-    scr.innerHTML = v === 'home' ? viewHome() : v === 'journey' ? (cur() ? viewJourney() : viewDone()) : v === 'route' ? viewRoute() : v === 'help' ? viewHelp() : viewDone();
+    scr.innerHTML = v === 'home' ? viewHome() : v === 'journey' ? (cur() ? viewJourney() : pending() ? viewOrders() : viewDone())
+      : v === 'route' ? viewRoute() : v === 'help' ? viewHelp() : v === 'orders' ? (cur() ? viewJourney() : viewOrders()) : viewDone();
     $('phone').classList.toggle('large', S.large);
     $('fab').hidden = v === 'help';
     $('sb-clock').textContent = hhmm(S.t);
@@ -571,16 +707,16 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     s += `<line x1="640" y1="20" x2="640" y2="500" stroke-dasharray="6 6" style="stroke:var(--line)"></line>`;
     s += `<text x="660" y="22" font-size="13" font-weight="800" style="fill:var(--muted);font-family:var(--font)">TẦNG 2 · KHU B</text>`;
     s += R(660, 40, 320, 240, 'B', 'KHU B · Tầng 2');
-    s += `<path d="M725 215H882V140" stroke-width="16" stroke-linecap="round" style="fill:none;stroke:var(--surface-2)"></path>`;
+    s += `<path d="M725 215H882V140M882 215H942V140" stroke-width="16" stroke-linecap="round" style="fill:none;stroke:var(--surface-2)"></path>`;
     for (const [rx, label] of [[700, '201'], [760, '203'], [860, '205'], [920, '207']]) s += `<rect x="${rx}" y="90" width="44" height="34" rx="4" style="fill:var(--surface-2)"></rect><text x="${rx + 22}" y="112" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--muted);font-family:var(--mono)">${label}</text>`;
     // thang máy
     for (const id of ['liftB1', 'liftB2']) { const n = NODES[id]; s += `<rect x="${n.x - 14}" y="${n.y - 34}" width="28" height="22" rx="4" style="fill:var(--zone-b)"></rect><text x="${n.x}" y="${n.y - 18}" text-anchor="middle" font-size="12" font-weight="800" style="fill:var(--surface);font-family:var(--font)">⇅</text>`; }
     // điểm đích không có QR
-    for (const id of ['intake', 'help', 'lab', 'pharmacy', 'room205']) {
+    for (const id of ['intake', 'help', 'lab', 'pharmacy', 'room205', 'imaging', 'room207']) {
       const n = NODES[id];
       s += `<circle cx="${n.x}" cy="${n.y}" r="6" style="fill:${ZONES[n.zone]}"></circle>`;
-      const label = { intake: 'Tiếp nhận', help: 'Quầy hỗ trợ', lab: 'Lấy máu', pharmacy: 'Nhà thuốc BHYT', room205: 'P.205' }[id];
-      s += id === 'room205' ? `<text x="${n.x + 12}" y="${n.y + 4}" font-size="12" font-weight="700" style="fill:var(--fg);font-family:var(--font)">${label}</text>` : `<text x="${n.x}" y="${n.y + 20}" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--fg);font-family:var(--font)">${label}</text>`;
+      const label = { intake: 'Tiếp nhận', help: 'Quầy hỗ trợ', lab: 'Lấy máu', pharmacy: 'Nhà thuốc BHYT', room205: 'P.205', imaging: 'Siêu âm · X-quang', room207: 'P.207' }[id];
+      s += id === 'room205' || id === 'room207' ? `<text x="${n.x + 12}" y="${n.y + 4}" font-size="12" font-weight="700" style="fill:var(--fg);font-family:var(--font)">${label}</text>` : `<text x="${n.x}" y="${n.y + 20}" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--fg);font-family:var(--font)">${label}</text>`;
     }
     $('m-base').innerHTML = s;
   }
@@ -606,6 +742,22 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     }
     $('m-route').innerHTML = s;
   }
+  function drawHeat() {
+    let s = '';
+    if (S.heatOn) {
+      for (const id in NODES) {
+        if (!NODES[id].qr) continue;
+        const v = heatOf(id), n = v[0] + v[1] + v[2];
+        if (!n) continue;
+        const p = NODES[id], r = 13 + 7 * Math.sqrt(n);
+        s += `<circle cx="${p.x}" cy="${p.y}" r="${r.toFixed(1)}" style="fill:var(--warn);fill-opacity:${Math.min(.5, .12 + n * .03).toFixed(2)};stroke:var(--warn);stroke-width:1.5"></circle>`;
+        s += `<text x="${p.x + 15}" y="${p.y - 13}" font-size="13" font-weight="800" style="fill:var(--warn);font-family:var(--mono)">${n}</text>`;
+      }
+    }
+    $('m-heat').innerHTML = s;
+    $('heat-legend').hidden = !S.heatOn;
+    $('btn-heat').setAttribute('aria-pressed', S.heatOn);
+  }
   function drawDyn() {
     let s = '';
     let p = null;
@@ -629,23 +781,27 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       const last = S.scans[S.scans.length - 1];
       d.innerHTML = `
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b class="mono">${CODE}</b><span class="small">Phiếu 1047 · Nội tim mạch</span></div>
-        ${st ? `<div><span class="small">Bước hiện tại (${S.step + 1}/${JOURNEY.length})</span><br><b>${esc(st.title)}</b><br>${esc(NODES[st.dest].name)} · ${zoneChip(st.dest)}</div>` : '<b>Đã hoàn thành hành trình</b>'}
+        ${st ? `<div><span class="small">Bước hiện tại (${S.step + 1}/${total()})</span><br><b>${esc(st.title)}</b><br>${esc(NODES[st.dest].name)} · ${zoneChip(st.dest)}</div>` : pending() ? '<div><b>Vừa khám xong, đang chọn bước tiếp theo theo phiếu chỉ định</b><br><span class="small">Có thể xem phiếu giúp người bệnh và chọn trên điện thoại của họ.</span></div>' : '<b>Đã hoàn thành hành trình</b>'}
         <div><span class="small">Vị trí quét gần nhất</span><br>${last ? `${esc(NODES[last.id].name)} lúc <span class="mono">${hhmm(last.t)}</span>` : 'Chưa quét mã vị trí'}</div>
         <button class="chip primary" type="button" id="btn-send" ${st ? '' : 'disabled'}>Gửi chỉ dẫn tới điện thoại người bệnh</button>`;
     }
+    if (S.looked) d.insertAdjacentHTML('beforeend', `<button class="chip" type="button" id="btn-card">In phiếu hành trình giấy</button><p class="small">Cho người không dùng điện thoại thông minh: in các bước, khu, tầng, màu vạch sơn và sơ đồ.</p>`);
     const max = Math.max(...S.stats.top.map(x => x[1]));
     $('staff-stats').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline"><b>Hỏi đường hôm nay</b><span class="mono" style="font-size:22px;font-weight:700">${S.stats.asks}</span></div>
       ${S.stats.top.map(([k, v]) => `<div class="bar"><span>${esc(k)}</span><span class="mono">${v}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div></div>`).join('')}
-      <div class="note warn" style="font-size:12.5px"><b>Gợi ý sửa biển chỉ dẫn:</b> ${esc(S.stats.rescan[0][0])} có ${S.stats.rescan[0][1]} lượt quét lặp lại trong ngày.</div>
-      <p class="small">Số liệu thống kê là dữ liệu mẫu.</p>`;
+      <b>Điểm lạc đường nhiều nhất</b>
+      <div class="heat-list">${Object.keys(NODES).filter(id => NODES[id].qr).map(id => [id, heatOf(id)]).sort((a, b) => (b[1][0] + b[1][1] + b[1][2]) - (a[1][0] + a[1][1] + a[1][2])).slice(0, 2).map(([id, v]) =>
+        `<div class="heat-item"><b>${esc(NODES[id].name)} · ${v[0] + v[1] + v[2]} tín hiệu</b>${v[0]} quét lặp, ${v[1]} đi lệch, ${v[2]} nhờ hỗ trợ. Gợi ý: ${esc(FIX[id])}</div>`).join('')}</div>
+      <button class="chip" type="button" id="btn-heat2">${S.heatOn ? 'Ẩn' : 'Xem'} trên bản đồ</button>
+      <p class="small">Sửa biển xong, so số tín hiệu lạc đường tuần sau với tuần trước để biết đã đỡ chưa. Số liệu thống kê là dữ liệu mẫu.</p>`;
   }
   function renderLog() {
     $('log').innerHTML = S.log.length ? S.log.map(e => `<li class="${e.kind}"><span class="t">${hhmm(e.t)}</span><span class="m">${esc(e.text)}</span></li>`).join('') : `<li><span class="t">—</span><span class="m">Chưa có lượt quét. Bấm “Chạy kịch bản mẫu” hoặc quét thử một mã QR trên bản đồ.</span></li>`;
     $('legs').innerHTML = S.legs.length ? S.legs.map(l => `<tr><td>${esc(l.label)}<br><span class="small">tới nơi lúc ${hhmm(l.at)}</span></td><td class="v">${dur(l.s)}</td></tr>`).join('') : `<tr><td colspan="2" class="small">Chưa có chặng nào.</td></tr>`;
   }
   function render() {
-    renderPhone(); drawRoute(); drawDyn(); renderStaff(); renderLog();
+    renderPhone(); drawHeat(); drawRoute(); drawDyn(); renderStaff(); renderLog();
     $('clock').textContent = hhmm(S.t);
     $('tg-large').setAttribute('aria-pressed', S.large);
     $('tg-speak').setAttribute('aria-pressed', S.speak);
@@ -654,6 +810,58 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     $('panel-staff').hidden = S.staffTab !== 'staff';
     $('panel-log').hidden = S.staffTab !== 'log';
   }
+
+  // ---------- Phiếu hành trình in giấy ----------
+  function cardMap(steps, from) {
+    let s = $('m-base').innerHTML;
+    let at = from;
+    steps.forEach((st, k) => {
+      const r = route(at, st.dest);
+      for (let i = 0; i < r.nodes.length - 1; i++) {
+        const a = NODES[r.nodes[i]], b = NODES[r.nodes[i + 1]];
+        if (a.floor === b.floor) s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke-width="5" stroke-linecap="round" style="stroke:var(--brand)"></line>`;
+      }
+      at = st.dest;
+    });
+    for (const id in NODES) if (NODES[id].qr) { const n = NODES[id]; s += `<rect x="${n.x - 8}" y="${n.y - 8}" width="16" height="16" rx="3" style="fill:var(--sign);stroke:var(--fg)"></rect>`; }
+    const placed = {};
+    steps.forEach((st, k) => {
+      const d = NODES[st.dest]; const off = (placed[st.dest] = (placed[st.dest] || 0) + 1) - 1;
+      const x = d.x + off * 26, y = d.y - 24;
+      s += `<circle cx="${x}" cy="${y}" r="12" style="fill:var(--brand)"></circle><text x="${x}" y="${y + 5}" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff;font-family:var(--font)">${S.step + k + 1}</text>`;
+    });
+    return `<svg viewBox="0 0 1000 520" role="img" aria-label="Sơ đồ lộ trình các bước còn lại">${s}</svg>`;
+  }
+  function howTo(from, dest) {
+    const r = route(from, dest), n = NODES[dest], [hex, name] = ZONE_HEX[n.zone];
+    const lift = r.legs.some(l => l.lift);
+    return `<span class="sw" style="background:${hex}"></span>Vạch sơn ${name}${lift ? ` · thang máy khu B ${n.floor === 2 ? 'lên tầng 2' : 'xuống tầng trệt'}` : ''}`;
+  }
+  function openCard() {
+    const steps = S.journey.slice(S.step);
+    let at = S.loc || 'gate';
+    const rows = S.journey.map((st, i) => {
+      const done = i < S.step, d = NODES[st.dest];
+      const row = `<tr><td><span class="box">${done ? '✓' : ''}</span></td><td><b>${i + 1}. ${esc(st.title)}</b></td><td>${esc(d.name)}<br>Khu ${d.zone} · ${d.floor === 1 ? 'Tầng trệt' : 'Tầng ' + d.floor}</td><td>${done ? 'Đã xong' : howTo(at, st.dest)}</td><td>${esc(st.bring)}</td></tr>`;
+      if (!done) at = st.dest;
+      return row;
+    }).join('');
+    const later = pending() ? `<tr><td colspan="5"><b>${S.decisions ? 'Sau khi nghe kết quả' : 'Sau khi khám'}, bác sĩ cho đi đâu thì đánh dấu và đi theo màu vạch:</b><br>
+      ${(S.decisions ? ['pharmacy'] : ['ecg', 'blood', 'imaging', 'pharmacy']).map(k => { const d = NODES[ORDERS[k].step.dest]; const [hex, name] = ZONE_HEX[d.zone];
+        return `<span style="display:inline-block;margin:6px 16px 0 0"><span class="box"></span> ${esc(ORDERS[k].label)}: ${esc(d.name)}, <span class="sw" style="background:${hex}"></span>vạch ${name}</span>`; }).join('')}</td></tr>` : '';
+    $('print-card').innerHTML = `
+      <div class="ph"><div><h2>PHIẾU HÀNH TRÌNH KHÁM</h2><div class="meta">Phiếu số <b>1047</b> · Khoa khám bệnh – Nội tim mạch · Mã hỗ trợ <b>${CODE}</b></div></div><div class="meta" style="text-align:right">Bệnh viện mẫu<br>Ngày ...... / ...... / ............</div></div>
+      ${cardMap(steps, S.loc || 'gate')}
+      <table><thead><tr><th style="width:34px">Xong</th><th>Bước</th><th>Đến đâu</th><th>Đi theo</th><th>Mang theo</th></tr></thead><tbody>${rows}${later}</tbody></table>
+      <div class="alert"><b>Lạc đường hoặc chưa hiểu?</b> Đưa phiếu này cho bảo vệ hoặc Quầy hỗ trợ người bệnh ở Sảnh A (biển màu cam). Chỉ đóng tiền tại quầy thu ngân và nhận biên lai; không đi theo người lạ mời “khám nhanh”. <b>Cấp cứu:</b> đến thẳng Khoa Cấp cứu hoặc gọi 115.</div>
+      <p class="foot">Phiếu mẫu của nguyên mẫu Lối Khám · bệnh viện, sơ đồ và số liệu đều giả lập · Nội dung chỉ dẫn trong bản thật do bệnh viện duyệt.</p>`;
+    $('card-overlay').hidden = false;
+    document.body.classList.add('print-card');
+    addLog('staff', 'Nhân viên in phiếu hành trình giấy cho người bệnh');
+    renderLog();
+    $('btn-print').focus();
+  }
+  function closeCard() { $('card-overlay').hidden = true; document.body.classList.remove('print-card'); }
 
   // ---------- Kịch bản mẫu (đi bộ mô phỏng) ----------
   const TIME_SCALE = 40;
@@ -666,9 +874,16 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   }
   function tick(dt) {
     if (!S.auto) return;
+    if (!cur() && pending()) {
+      // màn hình "Bác sĩ cho làm gì tiếp?": để người xem thấy rồi tự chọn theo kịch bản mẫu
+      S.orderWait += dt;
+      if (S.decisions === 0 && S.orderWait > 1.2 && !S.pick.length) { S.pick = ['blood']; render(); }
+      if (S.orderWait > 2.4) { chooseOrders(S.decisions === 0 ? ['blood'] : ['pharmacy']); if (cur()) startWalk(); else { S.auto = false; render(); } }
+      return;
+    }
     if (S.waitUntil != null) {
       S.t += dt * TIME_SCALE * 6;
-      if (S.t >= S.waitUntil) { S.waitUntil = null; finishStep(); if (S.auto && cur()) startWalk(); else { S.auto = false; S.walk = null; render(); } }
+      if (S.t >= S.waitUntil) { S.waitUntil = null; finishStep(); if (S.auto && cur()) startWalk(); else if (!(S.auto && pending())) { S.auto = false; S.walk = null; render(); } }
       return;
     }
     if (!S.walk) return;
@@ -704,7 +919,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   }
   function reset() {
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
-    const keep = { large: S.large, speak: S.speak, staffTab: S.staffTab };
+    const keep = { large: S.large, speak: S.speak, staffTab: S.staffTab, heatOn: S.heatOn };
     S = fresh(); Object.assign(S, keep);
     render();
   }
@@ -712,8 +927,13 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   // ---------- Sự kiện ----------
   $('scr').addEventListener('click', e => {
     const sc = e.target.closest('[data-scan]'); if (sc) { if (!S.auto) scanAt(sc.dataset.scan); return; }
+    const pk = e.target.closest('[data-pick]');
+    if (pk) { const k = pk.dataset.pick; S.pick = S.pick.includes(k) ? S.pick.filter(x => x !== k) : [...S.pick, k]; render(); return; }
     const b = e.target.closest('[data-act]'); if (!b) return;
     const a = b.dataset.act;
+    if (a === 'orders-ok') { if (S.pick.length) chooseOrders(S.pick); return; }
+    if (a === 'order-pharmacy') { chooseOrders(['pharmacy']); return; }
+    if (a === 'order-home') { chooseOrders(['home']); return; }
     if (a === 'ticket') scanTicket();
     else if (a === 'route') { S.view = 'route'; say(currentSpeech()); render(); }
     else if (a === 'journey') { S.view = 'journey'; render(); }
@@ -722,7 +942,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     else if (a === 'reset') reset();
     else if (a === 'back') { S.view = prevView; render(); }
   });
-  $('fab').addEventListener('click', () => { prevView = S.view === 'help' ? prevView : (S.ticket ? S.view : 'journey'); S.view = 'help'; render(); });
+  $('fab').addEventListener('click', () => { if (S.view !== 'help' && S.loc) bump(S.loc, 2); prevView = S.view === 'help' ? prevView : (S.ticket ? S.view : 'journey'); S.view = 'help'; render(); });
   $('map').addEventListener('click', e => { const g = e.target.closest('[data-scan]'); if (g && !S.auto) scanAt(g.dataset.scan); });
   $('map').addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest('[data-scan]'); if (g && !S.auto) { e.preventDefault(); scanAt(g.dataset.scan); } });
   $('tg-large').addEventListener('click', () => { S.large = !S.large; render(); });
@@ -730,7 +950,16 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   $('tab-staff').addEventListener('click', () => { S.staffTab = 'staff'; render(); });
   $('tab-log').addEventListener('click', () => { S.staffTab = 'log'; render(); });
   $('btn-lookup').addEventListener('click', () => { S.looked = $('code-in').value.trim().toUpperCase() === CODE; if (!S.looked) $('staff-detail').innerHTML = '<p class="small">Không tìm thấy mã này trong dữ liệu mẫu. Thử LK-1047.</p>'; else render(); });
-  $('panel-staff').addEventListener('click', e => { if (e.target.closest('#btn-send')) staffSend(); });
+  $('panel-staff').addEventListener('click', e => {
+    if (e.target.closest('#btn-send')) staffSend();
+    if (e.target.closest('#btn-card')) openCard();
+    if (e.target.closest('#btn-heat2')) { S.heatOn = !S.heatOn; render(); }
+  });
+  $('btn-heat').addEventListener('click', () => { S.heatOn = !S.heatOn; render(); });
+  $('btn-print').addEventListener('click', () => window.print());
+  $('btn-close-card').addEventListener('click', closeCard);
+  $('card-overlay').addEventListener('click', e => { if (e.target.id === 'card-overlay') closeCard(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('card-overlay').hidden) closeCard(); });
   $('btn-auto').addEventListener('click', runAuto);
   $('btn-reset').addEventListener('click', reset);
 
@@ -741,6 +970,13 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     if (name === 'shot-journey') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); S.view = 'journey'; }
     if (name === 'shot-route') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); at('junction', 430); at('liftB1', 470); S.view = 'route'; }
     if (name === 'shot-staff') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); at('junction', 430); S.view = 'help'; S.staffTab = 'staff'; }
+    if (name === 'shot-orders' || name === 'shot-added' || name === 'shot-card') {
+      scanTicket(); at('gate', 0);
+      while (cur()) { const r = route(S.loc, cur().dest); S.t += sumS(r); if (NODES[cur().dest].qr) scanAt(cur().dest); else arrive(); S.t += cur().service; finishStep(); }
+      if (name !== 'shot-orders') { S.pick = ['blood']; chooseOrders(['blood']); }
+      if (name === 'shot-orders') S.pick = ['blood'];
+    }
+    if (name === 'shot-heat') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); S.heatOn = true; S.staffTab = 'staff'; }
     if (name === 'shot-log') {
       scanTicket(); at('gate', 0);
       const walkTo = (dest, svc) => { const r = route(S.loc, cur().dest); S.t += sumS(r); if (NODES[cur().dest].qr) scanAt(cur().dest); else arrive(); S.t += svc; finishStep(); };
@@ -749,6 +985,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     }
     quiet = false;
     render();
+    if (name === 'shot-card') openCard();
   }
 
   drawBase(); render();
