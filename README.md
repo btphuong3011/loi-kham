@@ -21,3 +21,13 @@ Bấm **“Chạy kịch bản mẫu”** để xem một người bệnh đi h�
 ## Chạy trên máy
 
 Mở `index.html` bằng trình duyệt; không cần cài đặt hay máy chủ.
+
+## Bản phát triển sau vòng sơ khảo (v2)
+
+**Xem:** https://btphuong3011.github.io/loi-kham/v2/ · Bản gốc nộp kèm hồ sơ (`index.html` ở thư mục gốc) được giữ nguyên.
+
+- **Bác sĩ cho làm gì tiếp?** Giai đoạn 1 chưa kết nối hệ thống bệnh viện, nên hành trình chỉ biết trước các bước tới phòng khám. Khám xong, người bệnh hoặc nhân viên chọn đúng mục trên phiếu chỉ định giấy (đo điện tim, lấy máu, siêu âm – X-quang) hoặc đơn thuốc; ứng dụng tự thêm các bước và chỉ đường. Ứng dụng chỉ cần biết phòng nào, không cần biết bệnh gì.
+- **Phiếu hành trình in giấy** cho người không dùng điện thoại: bảo vệ hoặc quầy hỗ trợ bấm *In phiếu hành trình giấy*; phiếu A4 có sơ đồ lộ trình, các bước, khu, tầng, màu vạch sơn, ô đánh dấu đã xong và các lựa chọn sau khám.
+- **Bản đồ điểm lạc đường** cho bệnh viện: mỗi mã QR cộng dồn số lượt quét lặp (cùng mã trong 10 phút), đi lệch lộ trình và nhờ hỗ trợ; màn hình nhân viên nêu hai điểm nhiều nhất kèm gợi ý sửa biển chỉ dẫn, để đo lại sau khi sửa.
+
+Dữ liệu vẫn là giả lập; số liệu điểm lạc đường là dữ liệu mẫu cộng các lượt thử trên trang.

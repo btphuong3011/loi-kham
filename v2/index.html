@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Lối Khám – bản phát triển sau vòng sơ khảo: chọn chỉ định sau khám, phiếu hành trình in giấy, bản đồ điểm lạc đường (dữ liệu giả lập)">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Lối Khám · bản phát triển</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: patient phone app on the left; hospital wayfinding board on the right (map with QR checkpoints, staff console, measurement log). Stacks on phones. */
+:root {
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --surface-2: #e9eef2;
+  --fg: #13212c;
+  --muted: #586977;
+  --line: #d5dee5;
+  --brand: #1c4f7a;      /* xanh biển chỉ dẫn bệnh viện */
+  --brand-ink: #ffffff;
+  --brand-soft: #dde9f3;
+  --sign: #f2b632;       /* vàng mã QR "Bạn đang ở đây" */
+  --sign-ink: #2b2100;
+  --ok: #1f7a4d;
+  --ok-soft: #dcf1e5;
+  --warn: #b5470f;
+  --warn-soft: #fbe6da;
+  --zone-a: #2f6fb0;
+  --zone-b: #2e8b57;
+  --zone-c: #7a4fb0;
+  --zone-d: #c46a12;
+  --floor: #f7f9fb;
+  --wall: #c9d4dc;
+  --phone-edge: #1a242c;
+  --font: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f161c; --surface: #17212a; --surface-2: #1f2c37; --fg: #e9f0f5; --muted: #9fb0bd; --line: #2b3a46;
+    --brand: #7fb3e0; --brand-ink: #0b1620; --brand-soft: #1c3346; --sign: #f2c14e; --sign-ink: #231a00;
+    --ok: #5fd39a; --ok-soft: #133628; --warn: #f39a63; --warn-soft: #3a2316;
+    --zone-a: #79a9dd; --zone-b: #63c08a; --zone-c: #b69be0; --zone-d: #e6a35e;
+    --floor: #1a252e; --wall: #33444f; --phone-edge: #000000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f161c; --surface: #17212a; --surface-2: #1f2c37; --fg: #e9f0f5; --muted: #9fb0bd; --line: #2b3a46;
+  --brand: #7fb3e0; --brand-ink: #0b1620; --brand-soft: #1c3346; --sign: #f2c14e; --sign-ink: #231a00;
+  --ok: #5fd39a; --ok-soft: #133628; --warn: #f39a63; --warn-soft: #3a2316;
+  --zone-a: #79a9dd; --zone-b: #63c08a; --zone-c: #b69be0; --zone-d: #e6a35e;
+  --floor: #1a252e; --wall: #33444f; --phone-edge: #000000;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 20px; }
+.brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.brand h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; font-size: 13.5px; font-weight: 600; }
+.chip.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.chip:disabled { opacity: .5; cursor: default; }
+
+.layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 940px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* Phone */
+.phone-col { display: grid; justify-items: center; gap: 8px; }
+.phone { width: 100%; max-width: 380px; height: 760px; border: 10px solid var(--phone-edge); border-radius: 40px; background: var(--surface);
+  display: flex; flex-direction: column; overflow: hidden; position: relative; }
+@media (max-width: 940px) { .phone { height: auto; min-height: 660px; } }
+@media (max-width: 440px) { .phone { border-width: 1px; border-color: var(--line); border-radius: 22px; } }
+.sbar { display: flex; justify-content: space-between; padding: 10px 20px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.appbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 16px 10px; border-bottom: 1px solid var(--line); }
+.appbar .t { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.tog { display: flex; gap: 6px; }
+.tog button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 5px 9px; font-size: 12.5px; font-weight: 700; }
+.tog button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.scr { flex: 1; overflow-y: auto; padding: 14px 16px 72px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.phone.large .scr { font-size: 18px; }
+.phone.large .big-title { font-size: 26px; }
+.phone.large .instr li { font-size: 19px; }
+.phone.large .btn { font-size: 19px; padding: 16px; }
+.eyebrow { margin: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.big-title { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 800; text-wrap: balance; }
+.scr p { margin: 0; }
+.hint { color: var(--muted); font-size: .93em; }
+.btn { border: 0; border-radius: 14px; padding: 14px 16px; font-weight: 800; font-size: 16px; text-align: center; }
+.btn.primary { background: var(--brand); color: var(--brand-ink); }
+.btn.ghost { background: var(--surface-2); color: var(--fg); }
+.btn.sign { background: var(--sign); color: var(--sign-ink); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ticket { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 12px; border: 2px dashed var(--line); border-radius: 14px; }
+.ticket .no { font-family: var(--mono); font-weight: 700; font-size: 26px; }
+.note { padding: 10px 12px; border-radius: 12px; font-size: .9em; }
+.note.warn { background: var(--warn-soft); border: 1px solid var(--warn); }
+.note.info { background: var(--brand-soft); }
+.note.ok { background: var(--ok-soft); border: 1px solid var(--ok); }
+.locchip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--sign); color: var(--sign-ink); font-weight: 700; font-size: 13px; }
+.locchip.none { background: var(--surface-2); color: var(--muted); }
+.card { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; background: var(--surface); }
+.card.current { border: 2px solid var(--brand); }
+.card .head { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+.zone { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; font-size: .9em; }
+.zone i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .93em; }
+.kv b { color: var(--muted); font-weight: 600; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.steps li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 6px 4px; font-size: .92em; border-radius: 10px; }
+.steps li .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; border: 2px solid var(--line); }
+.steps li.done .dot { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.steps li.cur { background: var(--brand-soft); font-weight: 700; }
+.steps li.cur .dot { border-color: var(--brand); color: var(--brand); }
+.steps li .where { color: var(--muted); font-size: .85em; }
+.instr { margin: 0; padding: 0; list-style: none; counter-reset: i; display: grid; gap: 8px; }
+.instr li { counter-increment: i; display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 16px; line-height: 1.4; padding: 8px; border-radius: 12px; }
+.instr li::before { content: counter(i); width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; font-size: 14px; }
+.instr li.now { background: var(--brand-soft); font-weight: 700; }
+.instr li.now::before { background: var(--brand); color: var(--brand-ink); }
+.instr li.lift::before { content: "⇅"; }
+.metrics-mini { display: flex; gap: 14px; font-size: .9em; color: var(--muted); }
+.metrics-mini b { color: var(--fg); }
+.banner { padding: 10px 12px; border-radius: 12px; background: var(--ok-soft); border: 1px solid var(--ok); font-weight: 600; font-size: .92em; }
+.codebig { font-family: var(--mono); font-size: 40px; font-weight: 700; letter-spacing: .06em; text-align: center; padding: 10px; border-radius: 14px; background: var(--surface-2); }
+.fab { position: absolute; right: 14px; bottom: 14px; border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 800; background: var(--warn); color: var(--surface); box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+
+/* Board */
+.board { display: grid; gap: 14px; min-width: 0; }
+.bhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.bhead h2 { margin: 0; font-size: 18px; font-weight: 800; }
+.clock { font-family: var(--mono); font-weight: 700; font-size: 20px; padding: 4px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.mapbox { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 10px; overflow-x: auto; }
+.mapbox svg { display: block; width: 100%; min-width: 620px; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 4px 0; color: var(--muted); font-size: 12.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.qrmark { cursor: pointer; }
+.qrmark:hover rect.q { stroke-width: 3; }
+.tabs { display: inline-flex; gap: 4px; background: var(--surface-2); border-radius: 999px; padding: 4px; }
+.tabs button { border: 0; background: transparent; border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13.5px; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h3 { margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lookup { display: flex; gap: 8px; flex-wrap: wrap; }
+.lookup input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); font-family: var(--mono); font-weight: 700; width: 150px; }
+.staffgrid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 1100px) { .staffgrid { grid-template-columns: minmax(0, 1fr); } }
+.sub { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; font-size: 13.5px; }
+.bar .track { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.bar .fill { height: 100%; background: var(--brand); border-radius: 99px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; font-size: 13.5px; }
+.log li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+.log .t { font-family: var(--mono); color: var(--muted); font-size: 12.5px; }
+.log li.scan .m { color: var(--brand); font-weight: 600; }
+.log li.arrive .m { color: var(--ok); font-weight: 600; }
+.log li.staff .m { color: var(--warn); font-weight: 600; }
+table.mt { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.mt th, table.mt td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+table.mt th { color: var(--muted); font-size: 12px; font-weight: 600; }
+table.mt td.v { font-family: var(--mono); font-weight: 700; }
+.small { font-size: 12.5px; color: var(--muted); }
+footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
+.pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { from { transform: scale(.6); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+/* ---------- Bản phát triển (v2) ---------- */
+.v2note { padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); border: 1px solid var(--brand); font-size: 13.5px; }
+.v2note a { color: var(--brand); font-weight: 700; }
+.bh-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chip[aria-pressed="true"] { background: var(--warn); color: var(--surface); border-color: var(--warn); }
+.log li.order .m { color: var(--zone-c); font-weight: 600; }
+.steps li.todo { border: 2px dashed var(--line); }
+.steps li.todo .dot { border-style: dashed; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; border: 2px solid var(--line); border-radius: 14px; padding: 8px 10px; background: var(--surface); text-align: left; }
+.opt svg { width: 48px; height: 48px; }
+.opt b { display: block; font-size: 1.02em; }
+.opt .where { color: var(--muted); font-size: .86em; }
+.opt[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.opt[aria-pressed="true"] b::after { content: " ✓"; color: var(--brand); }
+.btn:disabled { opacity: .45; cursor: default; }
+.heat-list { display: grid; gap: 8px; }
+.heat-item { border-left: 4px solid var(--warn); padding: 4px 0 4px 10px; font-size: 13px; }
+.heat-item b { display: block; font-size: 13.5px; }
+.overlay { position: fixed; inset: 0; background: rgba(10, 20, 30, .55); display: grid; place-items: start center; overflow-y: auto; padding: 24px 12px; z-index: 50; }
+.overlay-box { background: var(--surface); border-radius: 16px; padding: 14px; width: min(760px, 100%); display: grid; gap: 10px; }
+.overlay-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pcard { --surface: #ffffff; --surface-2: #e9eef2; --fg: #13212c; --muted: #4a5a67; --line: #c9d3db; --brand: #1c4f7a; --brand-soft: #dde9f3;
+  --sign: #f2b632; --sign-ink: #2b2100; --warn: #b5470f; --floor: #f7f9fb; --zone-a: #2f6fb0; --zone-b: #2e8b57; --zone-c: #7a4fb0; --zone-d: #c46a12;
+  background: #fff; color: #111; border: 1px solid #ccc; border-radius: 8px; padding: 20px 22px; font-size: 15px; line-height: 1.45; display: grid; gap: 12px; }
+.pcard .ph { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; border-bottom: 3px solid #13212c; padding-bottom: 6px; }
+.pcard h2 { margin: 0; font-size: 21px; font-weight: 800; }
+.pcard .meta { font-size: 14px; }
+.pcard .meta b { font-family: var(--mono); }
+.pcard svg { width: 100%; height: auto; border: 1px solid #d5dee5; border-radius: 6px; }
+.pcard table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.pcard th, .pcard td { border: 1px solid #9aa7b1; padding: 6px 7px; text-align: left; vertical-align: top; }
+.pcard th { background: #eef2f5; font-size: 13px; }
+.pcard .box { width: 18px; height: 18px; border: 2px solid #222; border-radius: 3px; display: inline-grid; place-items: center; font-weight: 800; font-size: 13px; }
+.pcard .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.pcard .sw, .pcard th, .pcard svg * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pcard .alert { border: 2px solid #b5470f; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.pcard .foot { font-size: 12px; color: #4a5a67; }
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body.print-card > .wrap { display: none !important; }
+  body.print-card { background: #fff; }
+  body.print-card .overlay { position: static; background: none; padding: 0; display: block; overflow: visible; }
+  body.print-card .overlay-box { padding: 0; width: auto; border-radius: 0; }
+  body.print-card .overlay-bar { display: none; }
+  body.print-card .pcard { border: 0; padding: 0; gap: 8px; font-size: 13.5px; }
+  body.print-card .pcard svg { max-height: 74mm; }
+  body.print-card .pcard table { font-size: 13px; }
+  body.print-card .pcard th, body.print-card .pcard td { padding: 4px 6px; }
+  body.print-card .pcard .alert { font-size: 13px; padding: 6px 9px; }
+}
+</style>
+
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+        <rect width="44" height="44" rx="12" style="fill:var(--brand)"></rect>
+        <path d="M12 32V20l10-8 10 8v12" stroke-width="3" stroke-linejoin="round" style="fill:none;stroke:var(--brand-ink)"></path>
+        <path d="M22 32v-7" stroke-width="3" stroke-linecap="round" style="stroke:var(--sign)"></path>
+        <circle cx="22" cy="21" r="2.6" style="fill:var(--sign)"></circle>
+      </svg>
+      <div>
+        <h1>Lối Khám</h1>
+        <p>Nguyên mẫu chỉ đường và báo bước tiếp theo trong hành trình khám bệnh. Bản đồ, phiếu khám và số liệu đều là giả lập.</p>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="chip primary" id="btn-auto" type="button">Chạy kịch bản mẫu</button>
+      <button class="chip" id="btn-reset" type="button">Làm lại</button>
+    </div>
+  </header>
+  <div class="v2note" role="note"><b>Bản phát triển sau vòng sơ khảo</b> (từ 22/11/2026): thêm bước chọn chỉ định sau khám, phiếu hành trình in giấy cho người không dùng điện thoại, và bản đồ điểm lạc đường cho bệnh viện. Bản đã nộp kèm hồ sơ vẫn giữ nguyên tại <a href="../">btphuong3011.github.io/loi-kham</a>.</div>
+
+  <main class="layout">
+    <section class="phone-col" aria-label="Ứng dụng của người bệnh">
+      <div class="phone" id="phone">
+        <div class="sbar"><span class="mono" id="sb-clock">07:30</span><span>Bệnh viện mẫu</span></div>
+        <div class="appbar">
+          <span class="t">
+            <svg width="22" height="22" viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="11" style="fill:var(--brand)"></rect><path d="M12 32V20l10-8 10 8v12" stroke-width="3.4" stroke-linejoin="round" style="fill:none;stroke:var(--brand-ink)"></path><circle cx="22" cy="21" r="3" style="fill:var(--sign)"></circle></svg>
+            Lối Khám
+          </span>
+          <span class="tog">
+            <button type="button" id="tg-large" aria-pressed="false">A+ Chữ to</button>
+            <button type="button" id="tg-speak" aria-pressed="false">Đọc to</button>
+          </span>
+        </div>
+        <div class="scr" id="scr"></div>
+        <button class="fab" id="fab" type="button">Nhờ hỗ trợ</button>
+      </div>
+    </section>
+
+    <section class="board" aria-label="Bảng mô phỏng tại bệnh viện">
+      <div class="bhead">
+        <h2>Bản đồ minh họa · bệnh viện mẫu (2 tầng)</h2>
+        <span class="bh-tools"><button class="chip" id="btn-heat" type="button" aria-pressed="false">Xem điểm lạc đường</button><span class="clock" id="clock" title="Giờ mô phỏng">07:30</span></span>
+      </div>
+      <div class="mapbox">
+        <svg id="map" viewBox="0 0 1000 520" role="img" aria-label="Sơ đồ bệnh viện với các mã QR Bạn đang ở đây, các khu khám và vị trí người bệnh">
+          <g id="m-base"></g><g id="m-heat"></g><g id="m-route"></g><g id="m-dyn"></g>
+        </svg>
+        <div class="legend">
+          <span><i style="background:var(--sign)"></i>Mã QR “Bạn đang ở đây” (bấm để quét thử)</span>
+          <span><i style="background:var(--brand)"></i>Lộ trình tới bước hiện tại</span>
+          <span><i style="background:var(--zone-a)"></i>Khu A</span>
+          <span><i style="background:var(--zone-b)"></i>Khu B</span>
+          <span><i style="background:var(--zone-c)"></i>Khu C</span>
+          <span><i style="background:var(--zone-d)"></i>Khu D</span>
+          <span id="heat-legend" hidden><i style="background:var(--warn);border-radius:50%"></i>Điểm lạc đường: số lượt quét lặp, đi lệch đường hoặc nhờ hỗ trợ tại mã đó hôm nay (dữ liệu mẫu cộng lượt thử của bạn)</span>
+        </div>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Bảng điều khiển">
+        <button type="button" role="tab" id="tab-staff" aria-selected="true">Bảo vệ · Công tác xã hội</button>
+        <button type="button" role="tab" id="tab-log" aria-selected="false">Nhật ký &amp; chỉ số</button>
+      </div>
+      <div class="panel" id="panel-staff">
+        <h3>Màn hình cho bảo vệ và Phòng Công tác xã hội</h3>
+        <div class="lookup">
+          <input id="code-in" value="LK-1047" aria-label="Mã người bệnh" autocomplete="off">
+          <button class="chip primary" type="button" id="btn-lookup">Tra cứu</button>
+        </div>
+        <div class="staffgrid">
+          <div class="sub" id="staff-detail"></div>
+          <div class="sub" id="staff-stats"></div>
+        </div>
+        <p class="small">Nhân viên chỉ thấy bước hiện tại và vị trí quét mã gần nhất của người bệnh; không xem chẩn đoán hay hồ sơ bệnh án.</p>
+      </div>
+      <div class="panel" id="panel-log" hidden>
+        <h3>Nhật ký quét mã và thời gian tìm đường</h3>
+        <div class="staffgrid">
+          <ol class="log" id="log"></ol>
+          <div>
+            <table class="mt">
+              <thead><tr><th>Chặng (giờ mô phỏng)</th><th>Thời gian đi</th></tr></thead>
+              <tbody id="legs"></tbody>
+            </table>
+            <p class="small" id="legs-note">Thời gian đi được tính từ lúc rời điểm trước tới lúc quét mã tại đích, giả định tốc độ đi bộ 0,8 m/s và 60 giây cho thang máy.</p>
+          </div>
+        </div>
+      </div>
+      <footer class="small">Nguyên mẫu phục vụ Cuộc thi “1.000 ý tưởng chăm sóc sức khỏe Việt” 2026. Không dùng trong cấp cứu; khi cấp cứu, hãy đến Khoa Cấp cứu hoặc gọi 115. Nội dung chỉ dẫn trong bản thật do bệnh viện duyệt.</footer>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="card-overlay" hidden>
+  <div class="overlay-box" role="dialog" aria-modal="true" aria-labelledby="card-title">
+    <div class="overlay-bar"><b id="card-title">Phiếu hành trình in giấy · cho người không dùng điện thoại</b><span class="controls"><button class="chip primary" id="btn-print" type="button">In phiếu</button><button class="chip" id="btn-close-card" type="button">Đóng</button></span></div>
+    <div id="print-card" class="pcard"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const SPEED = 0.8;   // m/s, tốc độ đi bộ giả định của người cao tuổi
+  const LIFT_S = 60;   // giây cho một lượt thang máy
+  const START = 7 * 3600 + 30 * 60; // 07:30
+
+  const ZONES = { A: 'var(--zone-a)', B: 'var(--zone-b)', C: 'var(--zone-c)', D: 'var(--zone-d)' };
+  const NODES = {
+    gate:     { name: 'Cổng chính', floor: 1, x: 300, y: 488, qr: true, zone: 'A' },
+    lobby:    { name: 'Sảnh A – giữa sảnh', floor: 1, x: 300, y: 395, qr: true, zone: 'A' },
+    intake:   { name: 'Quầy tiếp nhận (Sảnh A)', floor: 1, x: 205, y: 345, zone: 'A' },
+    help:     { name: 'Quầy hỗ trợ người bệnh (Sảnh A)', floor: 1, x: 395, y: 345, zone: 'A' },
+    cashier:  { name: 'Quầy thu ngân 5–8 (Sảnh A)', floor: 1, x: 420, y: 420, qr: true, zone: 'A' },
+    junction: { name: 'Ngã ba hành lang', floor: 1, x: 300, y: 215, qr: true, zone: 'A' },
+    liftB1:   { name: 'Thang máy khu B, tầng trệt', floor: 1, x: 190, y: 215, qr: true, zone: 'B' },
+    labC:     { name: 'Lối vào khu C', floor: 1, x: 410, y: 215, qr: true, zone: 'C' },
+    lab:      { name: 'Phòng lấy máu xét nghiệm (khu C)', floor: 1, x: 505, y: 105, zone: 'C' },
+    pharmD:   { name: 'Lối vào khu D', floor: 1, x: 520, y: 420, qr: true, zone: 'D' },
+    pharmacy: { name: 'Nhà thuốc BHYT (khu D)', floor: 1, x: 575, y: 345, zone: 'D' },
+    liftB2:   { name: 'Thang máy khu B, tầng 2', floor: 2, x: 725, y: 215, qr: true, zone: 'B' },
+    hallB2:   { name: 'Hành lang B2', floor: 2, x: 835, y: 215, qr: true, zone: 'B' },
+    room205:  { name: 'Phòng khám 205 – Nội tim mạch', floor: 2, x: 882, y: 140, zone: 'B' },
+    imaging:  { name: 'Phòng siêu âm – X-quang (khu C)', floor: 1, x: 440, y: 140, zone: 'C' },
+    room207:  { name: 'Phòng 207 – Đo điện tim (khu B)', floor: 2, x: 942, y: 140, zone: 'B' }
+  };
+  // [a, b, mét, chỉ dẫn a→b, chỉ dẫn b→a, giây cố định]
+  const EDGES = [
+    ['gate', 'lobby', 25, 'Đi thẳng qua cổng chính vào giữa Sảnh A.', 'Đi thẳng ra cổng chính.'],
+    ['lobby', 'intake', 10, 'Rẽ trái, quầy tiếp nhận ở ngay phía trước.', 'Từ quầy tiếp nhận, quay về giữa Sảnh A.'],
+    ['lobby', 'help', 10, 'Rẽ phải, quầy hỗ trợ người bệnh có biển màu cam.', 'Từ quầy hỗ trợ, quay về giữa Sảnh A.'],
+    ['lobby', 'cashier', 15, 'Rẽ phải về phía cửa hông; dãy quầy thu ngân 5–8 ở bên phải.', 'Từ quầy thu ngân, quay về giữa Sảnh A.'],
+    ['lobby', 'junction', 40, 'Đi thẳng về cuối Sảnh A tới ngã ba hành lang.', 'Đi thẳng theo hành lang về giữa Sảnh A.'],
+    ['junction', 'liftB1', 30, 'Tại ngã ba, rẽ trái theo vạch sơn xanh lá tới thang máy khu B.', 'Ra khỏi khu B, đi thẳng tới ngã ba hành lang.'],
+    ['junction', 'labC', 30, 'Tại ngã ba, rẽ phải theo vạch sơn tím tới khu C.', 'Ra khỏi khu C, đi thẳng tới ngã ba hành lang.'],
+    ['labC', 'lab', 25, 'Đi hết hành lang khu C; phòng lấy máu ở cuối, lấy số tại máy trước cửa.', 'Từ phòng lấy máu, đi thẳng ra lối vào khu C.'],
+    ['cashier', 'pharmD', 25, 'Đi qua cửa hông Sảnh A, theo vạch sơn cam sang khu D.', 'Từ khu D, đi qua cửa hông về dãy quầy thu ngân.'],
+    ['pharmD', 'pharmacy', 15, 'Nhà thuốc BHYT ở bên trái; xếp hàng theo số trên đơn thuốc.', 'Từ nhà thuốc, quay ra lối vào khu D.'],
+    ['liftB1', 'liftB2', 0, 'Đi thang máy khu B lên tầng 2.', 'Đi thang máy khu B xuống tầng trệt.', LIFT_S],
+    ['liftB2', 'hallB2', 20, 'Ra khỏi thang máy, rẽ phải vào hành lang B2.', 'Đi thẳng về thang máy khu B.'],
+    ['hallB2', 'room205', 12, 'Phòng 205 ở bên trái; ngồi chờ và theo dõi số trên bảng điện tử.', 'Từ phòng 205, rẽ phải ra hành lang B2.'],
+    ['labC', 'imaging', 20, 'Vào khu C, phòng siêu âm – X-quang ở bên trái; lấy số tại máy trước cửa.', 'Từ phòng siêu âm – X-quang, đi ra lối vào khu C.'],
+    ['hallB2', 'room207', 24, 'Đi tiếp hành lang B2; phòng 207 ở cuối, bên trái.', 'Từ phòng 207, đi về hành lang B2.']
+  ];
+  // Giai đoạn 1 chưa kết nối hệ thống bệnh viện: hành trình chỉ biết trước các bước tới phòng khám.
+  // Các bước sau khám được thêm khi người bệnh (hoặc nhân viên) chọn đúng mục trên phiếu chỉ định giấy.
+  const BASE = [
+    { title: 'Tiếp nhận và lấy số', dest: 'intake', icon: 'ticket', kind: 'intake', bring: 'Thẻ BHYT hoặc CCCD gắn chip', tip: 'Đã hoàn thành tại ki-ốt lúc 07:25.', service: 0 },
+    { title: 'Xác nhận BHYT, đóng tạm ứng', dest: 'cashier', icon: 'cash', kind: 'cash', bring: 'Phiếu số thứ tự, thẻ BHYT', tip: 'Chỉ đóng tiền tại quầy thu ngân và nhận biên lai.', service: 240 },
+    { title: 'Khám Nội tim mạch', dest: 'room205', icon: 'doctor', kind: 'exam', bring: 'Phiếu khám, kết quả cũ (nếu có)', tip: 'Ngồi chờ trước phòng, theo dõi số 1047 trên bảng điện tử.', service: 900 }
+  ];
+  const ORDERS = {
+    ecg:      { label: 'Đo điện tim', icon: 'ecg', test: true, step: { title: 'Đo điện tim', dest: 'room207', icon: 'ecg', kind: 'test', bring: 'Phiếu chỉ định', tip: 'Lấy số trước phòng 207; nằm nghỉ vài phút trước khi đo.', service: 420 } },
+    blood:    { label: 'Lấy máu xét nghiệm', icon: 'blood', test: true, step: { title: 'Lấy máu xét nghiệm', dest: 'lab', icon: 'blood', kind: 'test', bring: 'Phiếu chỉ định xét nghiệm', tip: 'Nếu được dặn nhịn ăn mà bạn đã ăn, hãy báo nhân viên trước khi lấy máu.', service: 600 } },
+    imaging:  { label: 'Siêu âm, chụp X-quang', icon: 'scan', test: true, step: { title: 'Siêu âm hoặc chụp X-quang', dest: 'imaging', icon: 'scan', kind: 'test', bring: 'Phiếu chỉ định, thẻ BHYT', tip: 'Lấy số tại máy trước cửa phòng; làm theo dặn dò ghi trên phiếu chỉ định.', service: 600 } },
+    pharmacy: { label: 'Nhận thuốc BHYT', icon: 'pill', step: { title: 'Nhận thuốc BHYT', dest: 'pharmacy', icon: 'pill', kind: 'pharmacy', bring: 'Đơn thuốc, thẻ BHYT', tip: 'Kiểm tra tên thuốc và số lượng trước khi rời quầy.', service: 300 } }
+  };
+  const RESULT_STEP = { title: 'Quay lại phòng 205 nghe kết quả', dest: 'room205', icon: 'result', kind: 'result', bring: 'Phiếu khám, phiếu hẹn trả kết quả', tip: 'Thời gian chờ kết quả trong nguyên mẫu chỉ là minh họa.', service: 600 };
+  const ZONE_HEX = { A: ['#2f6fb0', 'xanh dương'], B: ['#2e8b57', 'xanh lá'], C: ['#7a4fb0', 'tím'], D: ['#c46a12', 'cam'] };
+  // Tín hiệu lạc đường mẫu trong ngày tại từng mã QR: [quét lặp, đi lệch đường, nhờ hỗ trợ]
+  const HEAT_BASE = { hallB2: [8, 3, 1], junction: [4, 2, 1], liftB1: [3, 1, 1], labC: [2, 1, 1], lobby: [1, 1, 1], cashier: [1, 0, 1], pharmD: [1, 1, 0], liftB2: [1, 0, 0], gate: [0, 0, 1] };
+  const FIX = {
+    hallB2: 'thêm biển “Phòng 201–207 →” ngay cửa thang máy tầng 2.',
+    junction: 'sơn lại vạch màu ở ngã ba, thêm mũi tên tới khu B (xanh lá) và khu C (tím).',
+    liftB1: 'ghi rõ “Khu B · Phòng khám tầng 2” trên cửa thang máy.',
+    labC: 'thêm biển “Lấy máu · Siêu âm – X-quang” tại lối vào khu C.',
+    lobby: 'đặt sơ đồ có mã QR ngay giữa sảnh, hướng ra cổng.',
+    cashier: 'đánh số quầy thu ngân to hơn, nhìn được từ giữa sảnh.',
+    pharmD: 'thêm biển “Nhà thuốc BHYT” ở cửa hông Sảnh A.',
+    liftB2: 'ghi số phòng hai phía hành lang khi ra khỏi thang máy.',
+    gate: 'đặt biển “Lấy số khám bệnh” ngay sau cổng.'
+  };
+  const CODE = 'LK-1047';
+
+  // ---------- Đồ thị & tìm đường ----------
+  const ADJ = {};
+  for (const id in NODES) ADJ[id] = [];
+  for (const [a, b, m, ab, ba, fixed] of EDGES) {
+    const cost = fixed != null ? fixed : m / SPEED;
+    ADJ[a].push({ to: b, m, cost, instr: ab, lift: fixed != null });
+    ADJ[b].push({ to: a, m, cost, instr: ba, lift: fixed != null });
+  }
+  function route(from, to) {
+    if (!from || from === to) return { nodes: [from], legs: [] };
+    const dist = {}, prev = {}, seen = new Set();
+    for (const id in NODES) dist[id] = Infinity;
+    dist[from] = 0;
+    while (true) {
+      let u = null;
+      for (const id in dist) if (!seen.has(id) && (u === null || dist[id] < dist[u])) u = id;
+      if (u === null || dist[u] === Infinity) break;
+      if (u === to) break;
+      seen.add(u);
+      for (const e of ADJ[u]) if (dist[u] + e.cost < dist[e.to]) { dist[e.to] = dist[u] + e.cost; prev[e.to] = { from: u, e }; }
+    }
+    const legs = []; let cur = to;
+    while (cur !== from && prev[cur]) { legs.unshift(prev[cur].e); cur = prev[cur].from; }
+    const nodes = [from]; for (const l of legs) nodes.push(l.to);
+    return { nodes, legs };
+  }
+  const sumM = r => r.legs.reduce((s, l) => s + l.m, 0);
+  const sumS = r => r.legs.reduce((s, l) => s + l.cost, 0);
+
+  // ---------- Trạng thái ----------
+  let S;
+  function fresh() {
+    return { t: 0, ticket: false, step: 1, loc: null, view: 'home', large: false, speak: false, banner: null,
+      scans: [], log: [], legs: [], legStart: { t: 0, from: 'gate' }, auto: false, walk: null, waitUntil: null,
+      stats: { asks: 46, top: [['Phòng khám 205', 14], ['Nhà thuốc BHYT', 11], ['Phòng lấy máu khu C', 9], ['Quầy thu ngân 5–8', 7]], rescan: [['Hành lang B2', 12], ['Ngã ba hành lang', 7]] },
+      staffTab: 'staff', looked: true,
+      journey: BASE.map(st => ({ ...st })), decisions: 0, closed: false, pick: [], heat: {}, heatOn: false, orderWait: 0 };
+  }
+  S = fresh();
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const hhmm = t => { const v = START + Math.round(t); const h = Math.floor(v / 3600) % 24, m = Math.floor(v / 60) % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+  const dur = s => { const v = Math.max(0, Math.round(s)); const m = Math.floor(v / 60), r = v % 60; return m ? `${m} phút ${String(r).padStart(2, '0')} giây` : `${r} giây`; };
+  const cur = () => S.journey[S.step];
+  // vừa khám xong (hoặc vừa nghe kết quả) mà chưa biết bác sĩ cho làm gì tiếp
+  const pending = () => !S.closed && ['exam', 'result'].includes(S.journey[S.journey.length - 1].kind);
+  const total = () => `${S.journey.length}${pending() ? '+' : ''}`;
+  function bump(id, k) { if (!id || !NODES[id].qr) return; const h = S.heat[id] || (S.heat[id] = [0, 0, 0]); h[k]++; }
+  const heatOf = id => { const b = HEAT_BASE[id] || [0, 0, 0], l = S.heat[id] || [0, 0, 0]; return [b[0] + l[0], b[1] + l[1], b[2] + l[2]]; };
+  function addLog(kind, text) { S.log.unshift({ t: S.t, kind, text }); }
+
+  // ---------- Hành động ----------
+  function scanTicket() {
+    S.ticket = true; S.view = 'journey';
+    addLog('scan', 'Quét mã trên phiếu số 1047: tải các bước tới phòng khám; các bước sau khám thêm theo phiếu chỉ định');
+    render();
+  }
+  function scanAt(id) {
+    if (!S.ticket) scanTicket();
+    const n = NODES[id];
+    // tín hiệu lạc đường: quét lại cùng mã trong 10 phút, hoặc quét mã không nằm trên lộ trình tới bước hiện tại
+    const prev = S.scans[S.scans.length - 1];
+    const stNow = cur();
+    if (prev && prev.id === id && S.t - prev.t < 600) bump(id, 0);
+    else if (stNow && prev && !route(prev.id, stNow.dest).nodes.includes(id)) bump(id, 1);
+    S.loc = id; S.scans.push({ t: S.t, id });
+    addLog('scan', `Quét mã “Bạn đang ở đây” tại ${n.name}`);
+    const step = cur();
+    if (step && id === step.dest) arrive();
+    else if (S.view !== 'help') S.view = 'route';
+    say(currentSpeech());
+    render();
+  }
+  function arrive() {
+    const step = cur(); if (!step || S.arrivedStep === S.step) return;
+    S.arrivedStep = S.step;
+    S.loc = step.dest;
+    const leg = { label: `${NODES[S.legStart.from].name} → ${NODES[step.dest].name}`, s: S.t - S.legStart.t, at: S.t };
+    S.legs.push(leg);
+    addLog('arrive', `Tới ${NODES[step.dest].name} (bước ${S.step + 1}) sau ${dur(leg.s)}`);
+    S.view = 'route';
+  }
+  function finishStep() {
+    if (!cur()) return;
+    addLog('arrive', `Hoàn thành bước ${S.step + 1}: ${cur().title}`);
+    S.step++;
+    S.legStart = { t: S.t, from: S.loc || 'gate' };
+    S.banner = null;
+    S.view = S.step < S.journey.length ? 'journey' : pending() ? 'orders' : 'done';
+    S.pick = []; S.orderWait = 0;
+    render();
+  }
+  function chooseOrders(picks) {
+    const tests = ['ecg', 'blood', 'imaging'].filter(k => picks.includes(k));
+    const added = [];
+    if (tests.length) { for (const k of tests) added.push({ ...ORDERS[k].step }); added.push({ ...RESULT_STEP }); }
+    else if (picks.includes('pharmacy')) added.push({ ...ORDERS.pharmacy.step });
+    else S.closed = true;
+    S.journey.push(...added);
+    S.decisions++;
+    addLog('order', added.length
+      ? `Chọn theo phiếu: ${picks.filter(k => ORDERS[k]).map(k => ORDERS[k].label).join(', ')} → thêm ${added.length} bước`
+      : 'Bác sĩ không chỉ định thêm; kết thúc hành trình');
+    S.pick = [];
+    S.view = cur() ? 'journey' : 'done';
+    say(currentSpeech());
+    render();
+  }
+  function staffSend() {
+    const step = cur(); if (!step) return;
+    S.stats.asks++;
+    S.banner = `Nhân viên hỗ trợ đã gửi chỉ dẫn tới ${NODES[step.dest].name}.`;
+    addLog('staff', `Nhân viên gửi chỉ dẫn tới điện thoại người bệnh (${CODE})`);
+    S.view = 'route';
+    render();
+  }
+
+  // ---------- Đọc to ----------
+  let viVoice = null;
+  function pickVoice() { try { viVoice = (speechSynthesis.getVoices() || []).find(v => /^vi/i.test(v.lang)) || null; } catch (e) { viVoice = null; } }
+  if (window.speechSynthesis) { pickVoice(); try { speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {} }
+  let quiet = false;
+  function say(text) {
+    if (!S.speak || quiet || !text || !window.speechSynthesis || !viVoice) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = viVoice; u.lang = viVoice.lang; u.rate = 0.95; speechSynthesis.speak(u); } catch (e) {}
+  }
+  function currentSpeech() {
+    const step = cur(); if (!step) return '';
+    if (S.loc === step.dest) return `Bạn đã tới ${NODES[step.dest].name}. ${step.tip}`;
+    if (!S.loc) return 'Hãy quét mã QR màu vàng gắn trên biển chỉ dẫn gần nhất.';
+    const r = route(S.loc, step.dest);
+    return r.legs.length ? r.legs[0].instr : '';
+  }
+
+  // ---------- Hình minh họa bước ----------
+  function icon(kind) {
+    const c = 'var(--brand)', s = 'var(--sign)';
+    const wrap = inner => `<svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" style="fill:var(--brand-soft)"></circle>${inner}</svg>`;
+    const st = `stroke-width="3" stroke-linecap="round" stroke-linejoin="round"`;
+    const P = {
+      ticket: `<rect x="18" y="16" width="28" height="34" rx="4" ${st} style="fill:var(--surface);stroke:${c}"></rect><path d="M24 26h16M24 33h10" ${st} style="stroke:${c}"></path><rect x="34" y="38" width="8" height="8" style="fill:${s}"></rect>`,
+      cash: `<rect x="14" y="22" width="36" height="22" rx="4" ${st} style="fill:var(--surface);stroke:${c}"></rect><circle cx="32" cy="33" r="5" ${st} style="fill:${s};stroke:${c}"></circle>`,
+      doctor: `<circle cx="32" cy="23" r="7" ${st} style="fill:var(--surface);stroke:${c}"></circle><path d="M19 48c1-9 6-13 13-13s12 4 13 13" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M27 37v5a4 4 0 0 0 8 0v-5" ${st} style="fill:none;stroke:${s}"></path>`,
+      blood: `<path d="M32 14c7 10 11 16 11 22a11 11 0 0 1-22 0c0-6 4-12 11-22z" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M27 37a5 5 0 0 0 5 5" ${st} style="fill:none;stroke:${s}"></path>`,
+      result: `<rect x="19" y="14" width="26" height="36" rx="3" ${st} style="fill:var(--surface);stroke:${c}"></rect><path d="M24 24h16M24 31h16M24 38h9" ${st} style="stroke:${c}"></path><path d="M36 42l3 3 6-7" ${st} style="fill:none;stroke:${s}"></path>`,
+      pill: `<rect x="16" y="26" width="32" height="13" rx="6.5" ${st} transform="rotate(-30 32 32)" style="fill:var(--surface);stroke:${c}"></rect><path d="M32 22l0 20" ${st} transform="rotate(-30 32 32)" style="stroke:${s}"></path>`,
+      ecg: `<rect x="14" y="18" width="36" height="28" rx="4" ${st} style="fill:var(--surface);stroke:${c}"></rect><path d="M18 33h7l3-7 5 13 3-6h10" ${st} style="fill:none;stroke:${s}"></path>`,
+      scan: `<rect x="16" y="16" width="32" height="32" rx="5" ${st} style="fill:var(--surface);stroke:${c}"></rect><circle cx="32" cy="32" r="8" ${st} style="fill:none;stroke:${s}"></circle><path d="M32 20v4M32 40v4M20 32h4M40 32h4" ${st} style="stroke:${c}"></path>`,
+      home: `<path d="M17 31l15-13 15 13v15H17z" ${st} style="fill:var(--surface);stroke:${c}"></path><path d="M28 46v-9h8v9" ${st} style="fill:none;stroke:${s}"></path>`
+    };
+    return wrap(P[kind] || '');
+  }
+  const zoneChip = id => { const n = NODES[id]; return `<span class="zone"><i style="background:${ZONES[n.zone]}"></i>Khu ${n.zone} · ${n.floor === 1 ? 'Tầng trệt' : 'Tầng ' + n.floor}</span>`; };
+
+  // ---------- Màn hình điện thoại ----------
+  function viewHome() {
+    return `
+      <p class="eyebrow">Bệnh viện mẫu · Khám ngoại trú</p>
+      <h2 class="big-title">Đi khám không lạc, luôn biết bước tiếp theo</h2>
+      <div class="ticket">
+        <svg width="62" height="62" viewBox="0 0 62 62" aria-hidden="true"><rect width="62" height="62" rx="8" style="fill:var(--surface-2)"></rect>${qrGlyph(9, 9, 44)}</svg>
+        <div><span class="hint">Phiếu số thứ tự (mẫu)</span><div class="no">1047</div><span class="hint">Khoa khám bệnh · Nội tim mạch</span></div>
+      </div>
+      <button class="btn primary" type="button" data-act="ticket">Quét mã trên phiếu số thứ tự</button>
+      <p class="hint">Không có điện thoại thông minh? Người nhà có thể quét giúp, hoặc đưa phiếu cho bảo vệ và quầy hỗ trợ ở Sảnh A.</p>
+      <div class="note warn"><b>Lưu ý an toàn:</b> chỉ đóng tiền tại quầy thu ngân của bệnh viện và nhận biên lai; không đi theo người lạ mời “khám nhanh”.</div>
+      <div class="note info">Cấp cứu: đến thẳng Khoa Cấp cứu hoặc báo ngay nhân viên gần nhất. Ứng dụng không dùng cho cấp cứu.</div>`;
+  }
+  function stepList() {
+    const rows = S.journey.map((st, i) => {
+      const cls = i < S.step ? 'done' : i === S.step ? 'cur' : '';
+      return `<li class="${cls}"><span class="dot">${i < S.step ? '✓' : i + 1}</span><span>${esc(st.title)}<br><span class="where">${esc(NODES[st.dest].name)}</span></span><span class="where">${i < S.step ? 'Xong' : i === S.step ? 'Hiện tại' : ''}</span></li>`;
+    });
+    if (pending()) rows.push(`<li class="todo"><span class="dot">?</span><span>${S.decisions ? 'Sau khi nghe kết quả' : 'Các bước sau khám'}<br><span class="where">Thêm theo phiếu chỉ định hoặc đơn thuốc bác sĩ đưa</span></span><span class="where"></span></li>`);
+    return `<ol class="steps">${rows.join('')}</ol>`;
+  }
+  function locChip() {
+    return S.loc ? `<span class="locchip">● Bạn đang ở: ${esc(NODES[S.loc].name)}</span>` : `<span class="locchip none">Chưa quét mã vị trí</span>`;
+  }
+  function viewJourney() {
+    const st = cur();
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <p class="eyebrow">Phiếu 1047 · Bước ${S.step + 1}/${total()}</p>${locChip()}
+      </div>
+      ${S.banner ? `<div class="banner">${esc(S.banner)}</div>` : ''}
+      <div class="card current">
+        <div class="head">${icon(st.icon)}<div><p class="eyebrow">Bước tiếp theo</p><h2 class="big-title">${esc(st.title)}</h2></div></div>
+        <div>${zoneChip(st.dest)}<br><b>${esc(NODES[st.dest].name)}</b></div>
+        <div class="kv"><b>Mang theo</b><span>${esc(st.bring)}</span><b>Lưu ý</b><span>${esc(st.tip)}</span></div>
+        <button class="btn primary" type="button" data-act="route">Chỉ đường tới đây</button>
+      </div>
+      <p class="eyebrow">Hành trình hôm nay</p>
+      ${stepList()}`;
+  }
+  function viewRoute() {
+    const st = cur();
+    if (!st) return pending() ? viewOrders() : viewDone();
+    const head = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <p class="eyebrow">Bước ${S.step + 1}/${total()} · Chỉ đường</p>${locChip()}
+      </div>
+      ${S.banner ? `<div class="banner">${esc(S.banner)}</div>` : ''}
+      <h2 class="big-title">Đến: ${esc(NODES[st.dest].name)}</h2>
+      <div>${zoneChip(st.dest)}</div>`;
+    if (S.loc === st.dest) {
+      return head + `
+        <div class="note ok"><b>Bạn đã tới nơi.</b> ${esc(st.tip)}</div>
+        <div class="kv"><b>Mang theo</b><span>${esc(st.bring)}</span></div>
+        <button class="btn primary" type="button" data-act="done">Tôi đã xong bước này</button>
+        <button class="btn ghost" type="button" data-act="journey">Xem cả hành trình</button>`;
+    }
+    if (!S.loc) {
+      return head + `
+        <div class="note info">Hãy tìm biển chỉ dẫn có <b>mã QR màu vàng “Bạn đang ở đây”</b> gần nhất và quét mã để ứng dụng biết vị trí của bạn.</div>
+        <p class="eyebrow">Mã QR gần cổng và sảnh (mô phỏng)</p>
+        <div class="row2">
+          <button class="btn sign" type="button" data-scan="gate">Quét mã ở Cổng chính</button>
+          <button class="btn sign" type="button" data-scan="lobby">Quét mã ở Sảnh A</button>
+        </div>
+        <button class="btn ghost" type="button" data-act="journey">Xem cả hành trình</button>`;
+    }
+    const r = route(S.loc, st.dest);
+    const nextQr = r.nodes.slice(1).find(id => NODES[id].qr);
+    return head + `
+      <div class="metrics-mini"><span>Quãng đường <b>≈ ${Math.round(sumM(r))} m</b></span><span>Đi bộ <b>${dur(sumS(r))}</b></span></div>
+      <ol class="instr">${r.legs.map((l, i) => `<li class="${i === 0 ? 'now' : ''} ${l.lift ? 'lift' : ''}"><span>${esc(l.instr)}</span></li>`).join('')}</ol>
+      ${nextQr ? `<button class="btn sign" type="button" data-scan="${nextQr}">${nextQr === st.dest ? 'Quét mã tại nơi đến' : 'Quét mã tiếp theo: ' + esc(NODES[nextQr].name)}</button>` : `<button class="btn sign" type="button" data-act="arrive">Tôi đã tới ${esc(NODES[st.dest].name)}</button>`}
+      <button class="btn ghost" type="button" data-act="journey">Xem cả hành trình</button>`;
+  }
+  function viewDone() {
+    return `
+      <p class="eyebrow">Hoàn thành hành trình</p>
+      <h2 class="big-title">Bạn đã xong buổi khám hôm nay</h2>
+      ${stepList()}
+      <div class="note info">Nếu cần tái khám, mang theo phiếu hẹn và thẻ BHYT. Ra về: đi theo vạch sơn xanh dương tới cổng chính.</div>
+      <button class="btn ghost" type="button" data-act="reset">Làm lại</button>`;
+  }
+  function viewOrders() {
+    const opt = (k, pressed) => { const o = ORDERS[k], d = NODES[o.step.dest];
+      return `<button class="opt" type="button" data-pick="${k}" aria-pressed="${pressed}">${icon(o.icon)}<span><b>${esc(o.label)}</b><span class="where">${esc(d.name)} · Khu ${d.zone}, ${d.floor === 1 ? 'tầng trệt' : 'tầng ' + d.floor}</span></span></button>`; };
+    const first = S.decisions === 0;
+    return `
+      <p class="eyebrow">Phiếu 1047 · ${first ? 'Vừa khám xong' : 'Đã nghe kết quả'}</p>
+      <h2 class="big-title">Bác sĩ cho làm gì tiếp?</h2>
+      <p class="hint">Chọn đúng mục ghi trên ${first ? 'phiếu chỉ định' : 'đơn thuốc'} bác sĩ đưa. Ứng dụng chỉ cần biết đến phòng nào, không cần biết bệnh gì.</p>
+      ${first ? `
+        <p class="eyebrow">Có thể chọn nhiều mục</p>
+        <div class="opts">${['ecg', 'blood', 'imaging'].map(k => opt(k, S.pick.includes(k))).join('')}</div>
+        <button class="btn primary" type="button" data-act="orders-ok" ${S.pick.length ? '' : 'disabled'}>Thêm vào hành trình</button>
+        <div class="row2"><button class="btn ghost" type="button" data-act="order-pharmacy">Chỉ có đơn thuốc</button><button class="btn ghost" type="button" data-act="order-home">Không làm thêm</button></div>` : `
+        <div class="opts">${opt('pharmacy', false).replace('data-pick="pharmacy"', 'data-act="order-pharmacy"').replace(' aria-pressed="false"', '')}
+        <button class="opt" type="button" data-act="order-home">${icon('home')}<span><b>Không có đơn thuốc, ra về</b><span class="where">Mang theo phiếu hẹn tái khám nếu có</span></span></button></div>`}
+      <div class="note info">Chưa chắc phiếu ghi gì? Bấm <b>Nhờ hỗ trợ</b> hoặc đưa phiếu cho bảo vệ, quầy hỗ trợ ở Sảnh A.</div>`;
+  }
+  function viewHelp() {
+    return `
+      <p class="eyebrow">Nhờ người hỗ trợ</p>
+      <h2 class="big-title">Đưa mã này cho bảo vệ hoặc nhân viên hỗ trợ</h2>
+      <div class="codebig">${CODE}</div>
+      <p class="hint">Nhân viên nhập mã để biết bạn đang ở bước nào và gửi chỉ dẫn tới điện thoại của bạn.</p>
+      <div class="kv"><b>Gần nhất</b><span>Quầy hỗ trợ người bệnh, Sảnh A (biển màu cam)</span><b>Bảo vệ</b><span>Cổng chính; thang máy khu B</span></div>
+      <div class="note info">Cấp cứu: đến thẳng Khoa Cấp cứu hoặc báo ngay nhân viên gần nhất.</div>
+      <button class="btn ghost" type="button" data-act="back">Quay lại</button>`;
+  }
+  let prevView = 'journey';
+  function renderPhone() {
+    const scr = $('scr');
+    const v = !S.ticket && S.view !== 'help' ? 'home' : S.view;
+    scr.innerHTML = v === 'home' ? viewHome() : v === 'journey' ? (cur() ? viewJourney() : pending() ? viewOrders() : viewDone())
+      : v === 'route' ? viewRoute() : v === 'help' ? viewHelp() : v === 'orders' ? (cur() ? viewJourney() : viewOrders()) : viewDone();
+    $('phone').classList.toggle('large', S.large);
+    $('fab').hidden = v === 'help';
+    $('sb-clock').textContent = hhmm(S.t);
+  }
+
+  // ---------- Bản đồ ----------
+  function qrGlyph(x, y, w) {
+    const c = w / 7; let s = '';
+    const fill = [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[4,0],[5,0],[6,0],[4,1],[6,1],[4,2],[5,2],[6,2],[0,4],[1,4],[2,4],[0,5],[2,5],[0,6],[1,6],[2,6],[4,4],[6,4],[5,5],[4,6],[6,6],[3,3]];
+    for (const [i, j] of fill) s += `<rect x="${(x + i * c).toFixed(1)}" y="${(y + j * c).toFixed(1)}" width="${c.toFixed(1)}" height="${c.toFixed(1)}" style="fill:var(--fg)"></rect>`;
+    return s;
+  }
+  function drawBase() {
+    const R = (x, y, w, h, z, label) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" stroke-width="2" style="fill:var(--floor);stroke:${ZONES[z]}"></rect><text x="${x + 10}" y="${y + 20}" font-size="13" font-weight="700" style="fill:${ZONES[z]};font-family:var(--font)">${label}</text>`;
+    let s = `<rect x="0" y="0" width="1000" height="520" style="fill:var(--surface)"></rect>`;
+    s += `<text x="20" y="22" font-size="13" font-weight="800" style="fill:var(--muted);font-family:var(--font)">TẦNG TRỆT</text>`;
+    s += R(120, 300, 360, 160, 'A', 'KHU A · Sảnh tiếp nhận');
+    s += R(60, 40, 200, 200, 'B', 'KHU B · Phòng khám');
+    s += R(370, 40, 220, 200, 'C', 'KHU C · Xét nghiệm');
+    s += R(490, 300, 130, 160, 'D', 'KHU D · Nhà thuốc');
+    // hành lang
+    s += `<path d="M300 460V215M190 215H410M420 420H520" stroke-width="16" stroke-linecap="round" style="fill:none;stroke:var(--surface-2)"></path>`;
+    s += `<text x="300" y="512" text-anchor="middle" font-size="12.5" font-weight="700" style="fill:var(--muted);font-family:var(--font)">Cổng chính</text>`;
+    // tầng 2
+    s += `<line x1="640" y1="20" x2="640" y2="500" stroke-dasharray="6 6" style="stroke:var(--line)"></line>`;
+    s += `<text x="660" y="22" font-size="13" font-weight="800" style="fill:var(--muted);font-family:var(--font)">TẦNG 2 · KHU B</text>`;
+    s += R(660, 40, 320, 240, 'B', 'KHU B · Tầng 2');
+    s += `<path d="M725 215H882V140M882 215H942V140" stroke-width="16" stroke-linecap="round" style="fill:none;stroke:var(--surface-2)"></path>`;
+    for (const [rx, label] of [[700, '201'], [760, '203'], [860, '205'], [920, '207']]) s += `<rect x="${rx}" y="90" width="44" height="34" rx="4" style="fill:var(--surface-2)"></rect><text x="${rx + 22}" y="112" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--muted);font-family:var(--mono)">${label}</text>`;
+    // thang máy
+    for (const id of ['liftB1', 'liftB2']) { const n = NODES[id]; s += `<rect x="${n.x - 14}" y="${n.y - 34}" width="28" height="22" rx="4" style="fill:var(--zone-b)"></rect><text x="${n.x}" y="${n.y - 18}" text-anchor="middle" font-size="12" font-weight="800" style="fill:var(--surface);font-family:var(--font)">⇅</text>`; }
+    // điểm đích không có QR
+    for (const id of ['intake', 'help', 'lab', 'pharmacy', 'room205', 'imaging', 'room207']) {
+      const n = NODES[id];
+      s += `<circle cx="${n.x}" cy="${n.y}" r="6" style="fill:${ZONES[n.zone]}"></circle>`;
+      const label = { intake: 'Tiếp nhận', help: 'Quầy hỗ trợ', lab: 'Lấy máu', pharmacy: 'Nhà thuốc BHYT', room205: 'P.205', imaging: 'Siêu âm · X-quang', room207: 'P.207' }[id];
+      s += id === 'room205' || id === 'room207' ? `<text x="${n.x + 12}" y="${n.y + 4}" font-size="12" font-weight="700" style="fill:var(--fg);font-family:var(--font)">${label}</text>` : `<text x="${n.x}" y="${n.y + 20}" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--fg);font-family:var(--font)">${label}</text>`;
+    }
+    $('m-base').innerHTML = s;
+  }
+  function drawRoute() {
+    let s = '';
+    const st = cur();
+    if (st && S.ticket) {
+      const from = S.loc || 'gate';
+      const r = route(from, st.dest);
+      for (let i = 0; i < r.nodes.length - 1; i++) {
+        const a = NODES[r.nodes[i]], b = NODES[r.nodes[i + 1]];
+        if (a.floor !== b.floor) continue;
+        s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke-width="5" stroke-linecap="round" ${S.loc ? '' : 'stroke-dasharray="8 8"'} style="stroke:var(--brand)"></line>`;
+      }
+      const d = NODES[st.dest];
+      s += `<circle class="pulse" cx="${d.x}" cy="${d.y}" r="12" style="fill:none;stroke:var(--brand);stroke-width:3"></circle>`;
+    }
+    // mã QR
+    for (const id in NODES) {
+      const n = NODES[id]; if (!n.qr) continue;
+      const active = S.loc === id;
+      s += `<g class="qrmark" data-scan="${id}" tabindex="0" role="button" aria-label="Quét mã tại ${esc(n.name)}"><rect class="q" x="${n.x - 11}" y="${n.y - 11}" width="22" height="22" rx="4" stroke-width="${active ? 3 : 1.5}" style="fill:var(--sign);stroke:var(--fg)"></rect><text x="${n.x}" y="${n.y + 4}" text-anchor="middle" font-size="9" font-weight="800" style="fill:var(--sign-ink);font-family:var(--mono)">QR</text></g>`;
+    }
+    $('m-route').innerHTML = s;
+  }
+  function drawHeat() {
+    let s = '';
+    if (S.heatOn) {
+      for (const id in NODES) {
+        if (!NODES[id].qr) continue;
+        const v = heatOf(id), n = v[0] + v[1] + v[2];
+        if (!n) continue;
+        const p = NODES[id], r = 13 + 7 * Math.sqrt(n);
+        s += `<circle cx="${p.x}" cy="${p.y}" r="${r.toFixed(1)}" style="fill:var(--warn);fill-opacity:${Math.min(.5, .12 + n * .03).toFixed(2)};stroke:var(--warn);stroke-width:1.5"></circle>`;
+        s += `<text x="${p.x + 15}" y="${p.y - 13}" font-size="13" font-weight="800" style="fill:var(--warn);font-family:var(--mono)">${n}</text>`;
+      }
+    }
+    $('m-heat').innerHTML = s;
+    $('heat-legend').hidden = !S.heatOn;
+    $('btn-heat').setAttribute('aria-pressed', S.heatOn);
+  }
+  function drawDyn() {
+    let s = '';
+    let p = null;
+    if (S.walk) p = S.walk.pos;
+    else if (S.loc) p = NODES[S.loc];
+    if (p) {
+      s += `<circle class="pulse" cx="${p.x}" cy="${p.y}" r="10" style="fill:none;stroke:var(--warn);stroke-width:3"></circle>`;
+      s += `<circle cx="${p.x}" cy="${p.y}" r="8" stroke-width="3" style="fill:var(--warn);stroke:var(--surface)"></circle>`;
+    }
+    $('m-dyn').innerHTML = s;
+  }
+
+  // ---------- Bảng nhân viên & nhật ký ----------
+  function renderStaff() {
+    const d = $('staff-detail');
+    if (!S.looked) { d.innerHTML = `<p class="small">Nhập mã người bệnh rồi bấm Tra cứu.</p>`; }
+    else if (!S.ticket) {
+      d.innerHTML = `<b class="mono">${CODE}</b><p class="small">Người bệnh chưa quét phiếu. Hướng dẫn họ quét mã trên phiếu số thứ tự, hoặc đưa họ tới quầy tiếp nhận.</p>`;
+    } else {
+      const st = cur();
+      const last = S.scans[S.scans.length - 1];
+      d.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b class="mono">${CODE}</b><span class="small">Phiếu 1047 · Nội tim mạch</span></div>
+        ${st ? `<div><span class="small">Bước hiện tại (${S.step + 1}/${total()})</span><br><b>${esc(st.title)}</b><br>${esc(NODES[st.dest].name)} · ${zoneChip(st.dest)}</div>` : pending() ? '<div><b>Vừa khám xong, đang chọn bước tiếp theo theo phiếu chỉ định</b><br><span class="small">Có thể xem phiếu giúp người bệnh và chọn trên điện thoại của họ.</span></div>' : '<b>Đã hoàn thành hành trình</b>'}
+        <div><span class="small">Vị trí quét gần nhất</span><br>${last ? `${esc(NODES[last.id].name)} lúc <span class="mono">${hhmm(last.t)}</span>` : 'Chưa quét mã vị trí'}</div>
+        <button class="chip primary" type="button" id="btn-send" ${st ? '' : 'disabled'}>Gửi chỉ dẫn tới điện thoại người bệnh</button>`;
+    }
+    if (S.looked) d.insertAdjacentHTML('beforeend', `<button class="chip" type="button" id="btn-card">In phiếu hành trình giấy</button><p class="small">Cho người không dùng điện thoại thông minh: in các bước, khu, tầng, màu vạch sơn và sơ đồ.</p>`);
+    const max = Math.max(...S.stats.top.map(x => x[1]));
+    $('staff-stats').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><b>Hỏi đường hôm nay</b><span class="mono" style="font-size:22px;font-weight:700">${S.stats.asks}</span></div>
+      ${S.stats.top.map(([k, v]) => `<div class="bar"><span>${esc(k)}</span><span class="mono">${v}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div></div>`).join('')}
+      <b>Điểm lạc đường nhiều nhất</b>
+      <div class="heat-list">${Object.keys(NODES).filter(id => NODES[id].qr).map(id => [id, heatOf(id)]).sort((a, b) => (b[1][0] + b[1][1] + b[1][2]) - (a[1][0] + a[1][1] + a[1][2])).slice(0, 2).map(([id, v]) =>
+        `<div class="heat-item"><b>${esc(NODES[id].name)} · ${v[0] + v[1] + v[2]} tín hiệu</b>${v[0]} quét lặp, ${v[1]} đi lệch, ${v[2]} nhờ hỗ trợ. Gợi ý: ${esc(FIX[id])}</div>`).join('')}</div>
+      <button class="chip" type="button" id="btn-heat2">${S.heatOn ? 'Ẩn' : 'Xem'} trên bản đồ</button>
+      <p class="small">Sửa biển xong, so số tín hiệu lạc đường tuần sau với tuần trước để biết đã đỡ chưa. Số liệu thống kê là dữ liệu mẫu.</p>`;
+  }
+  function renderLog() {
+    $('log').innerHTML = S.log.length ? S.log.map(e => `<li class="${e.kind}"><span class="t">${hhmm(e.t)}</span><span class="m">${esc(e.text)}</span></li>`).join('') : `<li><span class="t">—</span><span class="m">Chưa có lượt quét. Bấm “Chạy kịch bản mẫu” hoặc quét thử một mã QR trên bản đồ.</span></li>`;
+    $('legs').innerHTML = S.legs.length ? S.legs.map(l => `<tr><td>${esc(l.label)}<br><span class="small">tới nơi lúc ${hhmm(l.at)}</span></td><td class="v">${dur(l.s)}</td></tr>`).join('') : `<tr><td colspan="2" class="small">Chưa có chặng nào.</td></tr>`;
+  }
+  function render() {
+    renderPhone(); drawHeat(); drawRoute(); drawDyn(); renderStaff(); renderLog();
+    $('clock').textContent = hhmm(S.t);
+    $('tg-large').setAttribute('aria-pressed', S.large);
+    $('tg-speak').setAttribute('aria-pressed', S.speak);
+    $('tab-staff').setAttribute('aria-selected', S.staffTab === 'staff');
+    $('tab-log').setAttribute('aria-selected', S.staffTab === 'log');
+    $('panel-staff').hidden = S.staffTab !== 'staff';
+    $('panel-log').hidden = S.staffTab !== 'log';
+  }
+
+  // ---------- Phiếu hành trình in giấy ----------
+  function cardMap(steps, from) {
+    let s = $('m-base').innerHTML;
+    let at = from;
+    steps.forEach((st, k) => {
+      const r = route(at, st.dest);
+      for (let i = 0; i < r.nodes.length - 1; i++) {
+        const a = NODES[r.nodes[i]], b = NODES[r.nodes[i + 1]];
+        if (a.floor === b.floor) s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke-width="5" stroke-linecap="round" style="stroke:var(--brand)"></line>`;
+      }
+      at = st.dest;
+    });
+    for (const id in NODES) if (NODES[id].qr) { const n = NODES[id]; s += `<rect x="${n.x - 8}" y="${n.y - 8}" width="16" height="16" rx="3" style="fill:var(--sign);stroke:var(--fg)"></rect>`; }
+    const placed = {};
+    steps.forEach((st, k) => {
+      const d = NODES[st.dest]; const off = (placed[st.dest] = (placed[st.dest] || 0) + 1) - 1;
+      const x = d.x + off * 26, y = d.y - 24;
+      s += `<circle cx="${x}" cy="${y}" r="12" style="fill:var(--brand)"></circle><text x="${x}" y="${y + 5}" text-anchor="middle" font-size="14" font-weight="800" style="fill:#fff;font-family:var(--font)">${S.step + k + 1}</text>`;
+    });
+    return `<svg viewBox="0 0 1000 520" role="img" aria-label="Sơ đồ lộ trình các bước còn lại">${s}</svg>`;
+  }
+  function howTo(from, dest) {
+    const r = route(from, dest), n = NODES[dest], [hex, name] = ZONE_HEX[n.zone];
+    const lift = r.legs.some(l => l.lift);
+    return `<span class="sw" style="background:${hex}"></span>Vạch sơn ${name}${lift ? ` · thang máy khu B ${n.floor === 2 ? 'lên tầng 2' : 'xuống tầng trệt'}` : ''}`;
+  }
+  function openCard() {
+    const steps = S.journey.slice(S.step);
+    let at = S.loc || 'gate';
+    const rows = S.journey.map((st, i) => {
+      const done = i < S.step, d = NODES[st.dest];
+      const row = `<tr><td><span class="box">${done ? '✓' : ''}</span></td><td><b>${i + 1}. ${esc(st.title)}</b></td><td>${esc(d.name)}<br>Khu ${d.zone} · ${d.floor === 1 ? 'Tầng trệt' : 'Tầng ' + d.floor}</td><td>${done ? 'Đã xong' : howTo(at, st.dest)}</td><td>${esc(st.bring)}</td></tr>`;
+      if (!done) at = st.dest;
+      return row;
+    }).join('');
+    const later = pending() ? `<tr><td colspan="5"><b>${S.decisions ? 'Sau khi nghe kết quả' : 'Sau khi khám'}, bác sĩ cho đi đâu thì đánh dấu và đi theo màu vạch:</b><br>
+      ${(S.decisions ? ['pharmacy'] : ['ecg', 'blood', 'imaging', 'pharmacy']).map(k => { const d = NODES[ORDERS[k].step.dest]; const [hex, name] = ZONE_HEX[d.zone];
+        return `<span style="display:inline-block;margin:6px 16px 0 0"><span class="box"></span> ${esc(ORDERS[k].label)}: ${esc(d.name)}, <span class="sw" style="background:${hex}"></span>vạch ${name}</span>`; }).join('')}</td></tr>` : '';
+    $('print-card').innerHTML = `
+      <div class="ph"><div><h2>PHIẾU HÀNH TRÌNH KHÁM</h2><div class="meta">Phiếu số <b>1047</b> · Khoa khám bệnh – Nội tim mạch · Mã hỗ trợ <b>${CODE}</b></div></div><div class="meta" style="text-align:right">Bệnh viện mẫu<br>Ngày ...... / ...... / ............</div></div>
+      ${cardMap(steps, S.loc || 'gate')}
+      <table><thead><tr><th style="width:34px">Xong</th><th>Bước</th><th>Đến đâu</th><th>Đi theo</th><th>Mang theo</th></tr></thead><tbody>${rows}${later}</tbody></table>
+      <div class="alert"><b>Lạc đường hoặc chưa hiểu?</b> Đưa phiếu này cho bảo vệ hoặc Quầy hỗ trợ người bệnh ở Sảnh A (biển màu cam). Chỉ đóng tiền tại quầy thu ngân và nhận biên lai; không đi theo người lạ mời “khám nhanh”. <b>Cấp cứu:</b> đến thẳng Khoa Cấp cứu hoặc gọi 115.</div>
+      <p class="foot">Phiếu mẫu của nguyên mẫu Lối Khám · bệnh viện, sơ đồ và số liệu đều giả lập · Nội dung chỉ dẫn trong bản thật do bệnh viện duyệt.</p>`;
+    $('card-overlay').hidden = false;
+    document.body.classList.add('print-card');
+    addLog('staff', 'Nhân viên in phiếu hành trình giấy cho người bệnh');
+    renderLog();
+    $('btn-print').focus();
+  }
+  function closeCard() { $('card-overlay').hidden = true; document.body.classList.remove('print-card'); }
+
+  // ---------- Kịch bản mẫu (đi bộ mô phỏng) ----------
+  const TIME_SCALE = 40;
+  function startWalk() {
+    const st = cur(); if (!st) { S.auto = false; return; }
+    const from = S.loc || 'gate';
+    const r = route(from, st.dest);
+    S.walk = { r, i: 0, pos: { x: NODES[from].x, y: NODES[from].y }, legT: 0 };
+    S.view = 'route';
+  }
+  function tick(dt) {
+    if (!S.auto) return;
+    if (!cur() && pending()) {
+      // màn hình "Bác sĩ cho làm gì tiếp?": để người xem thấy rồi tự chọn theo kịch bản mẫu
+      S.orderWait += dt;
+      if (S.decisions === 0 && S.orderWait > 1.2 && !S.pick.length) { S.pick = ['blood']; render(); }
+      if (S.orderWait > 2.4) { chooseOrders(S.decisions === 0 ? ['blood'] : ['pharmacy']); if (cur()) startWalk(); else { S.auto = false; render(); } }
+      return;
+    }
+    if (S.waitUntil != null) {
+      S.t += dt * TIME_SCALE * 6;
+      if (S.t >= S.waitUntil) { S.waitUntil = null; finishStep(); if (S.auto && cur()) startWalk(); else if (!(S.auto && pending())) { S.auto = false; S.walk = null; render(); } }
+      return;
+    }
+    if (!S.walk) return;
+    const w = S.walk;
+    if (w.i >= w.r.legs.length) {
+      S.walk = null;
+      const st = cur();
+      if (NODES[st.dest].qr) scanAt(st.dest); else { arrive(); render(); }
+      S.waitUntil = S.t + st.service;
+      return;
+    }
+    const leg = w.r.legs[w.i];
+    const a = NODES[w.r.nodes[w.i]], b = NODES[w.r.nodes[w.i + 1]];
+    w.legT += dt * TIME_SCALE; S.t += dt * TIME_SCALE;
+    const f = Math.min(1, w.legT / leg.cost);
+    if (a.floor === b.floor) w.pos = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+    else w.pos = f < 0.5 ? { x: a.x, y: a.y } : { x: b.x, y: b.y };
+    if (f >= 1) {
+      w.i++; w.legT = 0;
+      const id = w.r.nodes[w.i];
+      if (NODES[id].qr && id !== cur().dest) { S.loc = id; S.scans.push({ t: S.t, id }); addLog('scan', `Quét mã “Bạn đang ở đây” tại ${NODES[id].name}`); render(); }
+    }
+    drawDyn(); $('clock').textContent = hhmm(S.t); $('sb-clock').textContent = hhmm(S.t);
+  }
+  let last = performance.now();
+  function loop(now) { const dt = Math.min(0.1, (now - last) / 1000); last = now; tick(dt); requestAnimationFrame(loop); }
+
+  function runAuto() {
+    reset(); S.auto = true;
+    S.loc = 'gate'; S.scans.push({ t: 0, id: 'gate' }); addLog('scan', 'Quét mã “Bạn đang ở đây” tại Cổng chính');
+    scanTicket(); S.legStart = { t: 0, from: 'gate' };
+    startWalk(); render();
+  }
+  function reset() {
+    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+    const keep = { large: S.large, speak: S.speak, staffTab: S.staffTab, heatOn: S.heatOn };
+    S = fresh(); Object.assign(S, keep);
+    render();
+  }
+
+  // ---------- Sự kiện ----------
+  $('scr').addEventListener('click', e => {
+    const sc = e.target.closest('[data-scan]'); if (sc) { if (!S.auto) scanAt(sc.dataset.scan); return; }
+    const pk = e.target.closest('[data-pick]');
+    if (pk) { const k = pk.dataset.pick; S.pick = S.pick.includes(k) ? S.pick.filter(x => x !== k) : [...S.pick, k]; render(); return; }
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const a = b.dataset.act;
+    if (a === 'orders-ok') { if (S.pick.length) chooseOrders(S.pick); return; }
+    if (a === 'order-pharmacy') { chooseOrders(['pharmacy']); return; }
+    if (a === 'order-home') { chooseOrders(['home']); return; }
+    if (a === 'ticket') scanTicket();
+    else if (a === 'route') { S.view = 'route'; say(currentSpeech()); render(); }
+    else if (a === 'journey') { S.view = 'journey'; render(); }
+    else if (a === 'arrive') { arrive(); say(currentSpeech()); render(); }
+    else if (a === 'done') finishStep();
+    else if (a === 'reset') reset();
+    else if (a === 'back') { S.view = prevView; render(); }
+  });
+  $('fab').addEventListener('click', () => { if (S.view !== 'help' && S.loc) bump(S.loc, 2); prevView = S.view === 'help' ? prevView : (S.ticket ? S.view : 'journey'); S.view = 'help'; render(); });
+  $('map').addEventListener('click', e => { const g = e.target.closest('[data-scan]'); if (g && !S.auto) scanAt(g.dataset.scan); });
+  $('map').addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest('[data-scan]'); if (g && !S.auto) { e.preventDefault(); scanAt(g.dataset.scan); } });
+  $('tg-large').addEventListener('click', () => { S.large = !S.large; render(); });
+  $('tg-speak').addEventListener('click', () => { S.speak = !S.speak; render(); if (S.speak) { if (!viVoice) { S.banner = 'Máy chưa có giọng đọc tiếng Việt; ứng dụng vẫn hiển thị chỉ dẫn bằng chữ.'; render(); } else say(currentSpeech()); } });
+  $('tab-staff').addEventListener('click', () => { S.staffTab = 'staff'; render(); });
+  $('tab-log').addEventListener('click', () => { S.staffTab = 'log'; render(); });
+  $('btn-lookup').addEventListener('click', () => { S.looked = $('code-in').value.trim().toUpperCase() === CODE; if (!S.looked) $('staff-detail').innerHTML = '<p class="small">Không tìm thấy mã này trong dữ liệu mẫu. Thử LK-1047.</p>'; else render(); });
+  $('panel-staff').addEventListener('click', e => {
+    if (e.target.closest('#btn-send')) staffSend();
+    if (e.target.closest('#btn-card')) openCard();
+    if (e.target.closest('#btn-heat2')) { S.heatOn = !S.heatOn; render(); }
+  });
+  $('btn-heat').addEventListener('click', () => { S.heatOn = !S.heatOn; render(); });
+  $('btn-print').addEventListener('click', () => window.print());
+  $('btn-close-card').addEventListener('click', closeCard);
+  $('card-overlay').addEventListener('click', e => { if (e.target.id === 'card-overlay') closeCard(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('card-overlay').hidden) closeCard(); });
+  $('btn-auto').addEventListener('click', runAuto);
+  $('btn-reset').addEventListener('click', reset);
+
+  // ---------- Trạng thái dựng sẵn để chụp ảnh minh họa (#shot-...) ----------
+  function preset(name) {
+    quiet = true;
+    const at = (id, t) => { S.t = t; scanAt(id); };
+    if (name === 'shot-journey') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); S.view = 'journey'; }
+    if (name === 'shot-route') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); at('junction', 430); at('liftB1', 470); S.view = 'route'; }
+    if (name === 'shot-staff') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); at('junction', 430); S.view = 'help'; S.staffTab = 'staff'; }
+    if (name === 'shot-orders' || name === 'shot-added' || name === 'shot-card') {
+      scanTicket(); at('gate', 0);
+      while (cur()) { const r = route(S.loc, cur().dest); S.t += sumS(r); if (NODES[cur().dest].qr) scanAt(cur().dest); else arrive(); S.t += cur().service; finishStep(); }
+      if (name !== 'shot-orders') { S.pick = ['blood']; chooseOrders(['blood']); }
+      if (name === 'shot-orders') S.pick = ['blood'];
+    }
+    if (name === 'shot-heat') { scanTicket(); at('gate', 0); S.t = 70; arrive(); S.t = 330; finishStep(); at('lobby', 380); S.heatOn = true; S.staffTab = 'staff'; }
+    if (name === 'shot-log') {
+      scanTicket(); at('gate', 0);
+      const walkTo = (dest, svc) => { const r = route(S.loc, cur().dest); S.t += sumS(r); if (NODES[cur().dest].qr) scanAt(cur().dest); else arrive(); S.t += svc; finishStep(); };
+      for (let k = 0; k < 3; k++) walkTo(null, cur().service);
+      S.view = 'journey'; S.staffTab = 'log';
+    }
+    quiet = false;
+    render();
+    if (name === 'shot-card') openCard();
+  }
+
+  drawBase(); render();
+  const h = (location.hash || '').slice(1);
+  if (h.startsWith('shot-')) preset(h);
+  if (h === 'demo') runAuto();
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
+})();
+</script>
+
+</body>
+</html>
