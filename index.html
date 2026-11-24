@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Lối Khám – nguyên mẫu chỉ đường và báo bước tiếp theo trong hành trình khám bệnh: chọn chỉ định sau khám, phiếu hành trình in giấy, bản đồ điểm lạc đường (dữ liệu giả lập)">
+<meta name="description" content="Nguyên mẫu Lối Khám hướng dẫn người bệnh ngoại trú đến đúng phòng theo từng bước khám. Dữ liệu minh họa là giả lập.">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Lối Khám</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -245,7 +245,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       </svg>
       <div>
         <h1>Lối Khám</h1>
-        <p>Nguyên mẫu chỉ đường và báo bước tiếp theo trong hành trình khám bệnh. Bản đồ, phiếu khám và số liệu đều là giả lập.</p>
+        <p>Nguyên mẫu hướng dẫn người bệnh ngoại trú đến đúng phòng theo từng bước khám. Bản đồ, phiếu khám và số liệu đều là giả lập.</p>
       </div>
     </div>
     <div class="controls">
@@ -253,7 +253,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
       <button class="chip" id="btn-reset" type="button">Làm lại</button>
     </div>
   </header>
-  <div class="v2note" role="note"><b>Cập nhật sau vòng sơ khảo</b> (từ 22/11/2026): thêm bước chọn chỉ định sau khám, phiếu hành trình in giấy cho người không dùng điện thoại, và bản đồ điểm lạc đường cho bệnh viện.</div>
+  <div class="v2note" role="note"><a href="#tuyen-thi-diem" id="link-pilot">Xem tuyến thí điểm đề xuất</a> từ quầy tiếp nhận đến phòng khám đầu tiên. Bản mô phỏng bắt đầu sau khi người bệnh hoàn tất thủ tục tiếp nhận.</div>
 
   <main class="layout">
     <section class="phone-col" aria-label="Ứng dụng của người bệnh">
@@ -277,7 +277,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     <section class="board" aria-label="Bảng mô phỏng tại bệnh viện">
       <div class="bhead">
         <h2>Bản đồ minh họa · bệnh viện mẫu (2 tầng)</h2>
-        <span class="bh-tools"><button class="chip" id="btn-heat" type="button" aria-pressed="false">Xem điểm lạc đường</button><span class="clock" id="clock" title="Giờ mô phỏng">07:30</span></span>
+        <span class="bh-tools"><button class="chip" id="btn-heat" type="button" aria-pressed="false">Điểm cần hỗ trợ</button><span class="clock" id="clock" title="Giờ mô phỏng">07:30</span></span>
       </div>
       <div class="mapbox">
         <svg id="map" viewBox="0 0 1000 520" role="img" aria-label="Sơ đồ bệnh viện với các mã QR Bạn đang ở đây, các khu khám và vị trí người bệnh">
@@ -290,7 +290,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
           <span><i style="background:var(--zone-b)"></i>Khu B</span>
           <span><i style="background:var(--zone-c)"></i>Khu C</span>
           <span><i style="background:var(--zone-d)"></i>Khu D</span>
-          <span id="heat-legend" hidden><i style="background:var(--warn);border-radius:50%"></i>Điểm lạc đường: số lượt quét lặp, đi lệch đường hoặc nhờ hỗ trợ tại mã đó hôm nay (dữ liệu mẫu cộng lượt thử của bạn)</span>
+          <span id="heat-legend" hidden><i style="background:var(--warn);border-radius:50%"></i>Tín hiệu cần hỗ trợ gồm lượt quét lặp, đi lệch tuyến hoặc yêu cầu hỗ trợ. Số liệu gồm dữ liệu mẫu và lượt thử trên trang.</span>
         </div>
       </div>
       <div class="tabs" role="tablist" aria-label="Bảng điều khiển">
@@ -790,11 +790,11 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     $('staff-stats').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline"><b>Hỏi đường hôm nay</b><span class="mono" style="font-size:22px;font-weight:700">${S.stats.asks}</span></div>
       ${S.stats.top.map(([k, v]) => `<div class="bar"><span>${esc(k)}</span><span class="mono">${v}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div></div>`).join('')}
-      <b>Điểm lạc đường nhiều nhất</b>
+      <b>Vị trí có nhiều tín hiệu cần hỗ trợ</b>
       <div class="heat-list">${Object.keys(NODES).filter(id => NODES[id].qr).map(id => [id, heatOf(id)]).sort((a, b) => (b[1][0] + b[1][1] + b[1][2]) - (a[1][0] + a[1][1] + a[1][2])).slice(0, 2).map(([id, v]) =>
         `<div class="heat-item"><b>${esc(NODES[id].name)} · ${v[0] + v[1] + v[2]} tín hiệu</b>${v[0]} quét lặp, ${v[1]} đi lệch, ${v[2]} nhờ hỗ trợ. Gợi ý: ${esc(FIX[id])}</div>`).join('')}</div>
       <button class="chip" type="button" id="btn-heat2">${S.heatOn ? 'Ẩn' : 'Xem'} trên bản đồ</button>
-      <p class="small">Sửa biển xong, so số tín hiệu lạc đường tuần sau với tuần trước để biết đã đỡ chưa. Số liệu thống kê là dữ liệu mẫu.</p>`;
+      <p class="small">Các tín hiệu giúp chọn vị trí cần kiểm tra biển chỉ dẫn. Số liệu trong nguyên mẫu là giả lập.</p>`;
   }
   function renderLog() {
     $('log').innerHTML = S.log.length ? S.log.map(e => `<li class="${e.kind}"><span class="t">${hhmm(e.t)}</span><span class="m">${esc(e.text)}</span></li>`).join('') : `<li><span class="t">—</span><span class="m">Chưa có lượt quét. Bấm “Chạy kịch bản mẫu” hoặc quét thử một mã QR trên bản đồ.</span></li>`;
@@ -924,6 +924,17 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
     render();
   }
 
+  function showPilotRoute() {
+    reset();
+    S.step = 2; // Ca mẫu bắt đầu sau khi hoàn tất thủ tục trước khám.
+    S.loc = 'intake';
+    S.legStart = { t: S.t, from: S.loc };
+    S.heatOn = false;
+    scanTicket();
+    S.view = 'route';
+    render();
+  }
+
   // ---------- Sự kiện ----------
   $('scr').addEventListener('click', e => {
     const sc = e.target.closest('[data-scan]'); if (sc) { if (!S.auto) scanAt(sc.dataset.scan); return; }
@@ -962,6 +973,15 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('card-overlay').hidden) closeCard(); });
   $('btn-auto').addEventListener('click', runAuto);
   $('btn-reset').addEventListener('click', reset);
+  $('link-pilot').addEventListener('click', event => {
+    if (location.hash === '#tuyen-thi-diem' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      showPilotRoute();
+    }
+  });
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#tuyen-thi-diem') showPilotRoute();
+  });
 
   // ---------- Trạng thái dựng sẵn để chụp ảnh minh họa (#shot-...) ----------
   function preset(name) {
@@ -992,6 +1012,7 @@ footer.small { border-top: 1px solid var(--line); padding-top: 10px; }
   const h = (location.hash || '').slice(1);
   if (h.startsWith('shot-')) preset(h);
   if (h === 'demo') runAuto();
+  if (h === 'tuyen-thi-diem') showPilotRoute();
   requestAnimationFrame(t => { last = t; requestAnimationFrame(loop); });
 })();
 </script>
